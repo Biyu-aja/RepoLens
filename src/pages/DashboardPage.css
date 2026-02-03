@@ -1,0 +1,211 @@
+.dashboard-layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 0;
+    border-right: 0;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    flex-shrink: 0;
+    z-index: 20;
+}
+
+.sidebar.open {
+    width: 350px;
+    border-right: 1px solid var(--color-border);
+}
+
+.sidebar-toggle {
+    position: absolute;
+    top: 50%;
+    right: -12px;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    z-index: 30;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-toggle:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: radial-gradient(circle at top right, #131318 0%, #0a0a0c 100%);
+    padding: var(--spacing-lg) var(--spacing-xl);
+}
+
+/* Header */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.repo-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-xs);
+}
+
+.repo-name .highlight {
+    color: var(--color-primary);
+}
+
+.repo-meta {
+    display: flex;
+    gap: var(--spacing-md);
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+.meta-tag {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.grade-box {
+    text-align: right;
+    background: rgba(255, 255, 255, 0.03);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.grade-label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.grade-score {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+}
+
+.grade-letter {
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.grade-value {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+/* Grid */
+.dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-lg);
+}
+
+.stat-card {
+    background: var(--color-bg-card);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    background: var(--color-bg-card-hover);
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.stat-value {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-main);
+}
+
+.visuals-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--spacing-lg);
+    height: 400px;
+}
+
+.chart-section,
+.insights-section {
+    height: 100%;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .visuals-row {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar.open {
+        position: absolute;
+        height: 100%;
+        box-shadow: 10px 0 20px rgba(0, 0, 0, 0.5);
+    }
+}

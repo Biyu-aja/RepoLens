@@ -1,0 +1,109 @@
+.readme-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg-card);
+    border-right: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.readme-header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    background: rgba(22, 22, 26, 0.95);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.readme-content {
+    flex: 1;
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+    font-size: 0.95rem;
+    color: var(--color-text-main);
+    line-height: 1.6;
+}
+
+/* Markdown Styles */
+.readme-content h1,
+.readme-content h2,
+.readme-content h3 {
+    color: #fff;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+
+.readme-content first-child {
+    margin-top: 0;
+}
+
+.readme-content p {
+    margin-bottom: 1em;
+    color: #d4d4d8;
+}
+
+.readme-content code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+}
+
+.readme-content pre {
+    background: #000;
+    padding: 1em;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin-bottom: 1em;
+    border: 1px solid var(--color-border);
+}
+
+.readme-content pre code {
+    background: transparent;
+    padding: 0;
+    color: #a5b4fc;
+}
+
+.readme-content ul,
+.readme-content ol {
+    padding-left: 1.5em;
+    margin-bottom: 1em;
+}
+
+.readme-content li {
+    margin-bottom: 0.25em;
+}
+
+.readme-content a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.readme-content a:hover {
+    text-decoration: underline;
+}
+
+/* Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+}
