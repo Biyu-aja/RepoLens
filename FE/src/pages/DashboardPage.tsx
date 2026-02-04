@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Layout, GitBranch, Shield, Zap, Book, 
-  ChevronLeft, ChevronRight, Home, MessageSquare, FileText 
+  ChevronLeft, ChevronRight, Home, MessageSquare, FileText,
+  PanelLeftClose, PanelLeft
 } from 'lucide-react';
-import type { RepoAnalysis } from '../types';
+import type { RepoAnalysis, AIInsight } from '../types';
 import ScoreBreakdown from '../components/ScoreBreakdown';
 import ReadmeViewer from '../components/ReadmeViewer';
 import InsightsPanel from '../components/InsightsPanel';
@@ -16,6 +17,7 @@ const DashboardPage: React.FC = () => {
   const [data, setData] = useState<RepoAnalysis | null>(null);
   const [activeTab, setActiveTab] = useState<SidebarTab>('readme');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activityBarExpanded, setActivityBarExpanded] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,6 +32,15 @@ const DashboardPage: React.FC = () => {
       navigate('/');
     }
   }, [navigate]);
+
+  // Handler untuk update insights dari AI
+  const handleInsightsUpdate = (newInsights: AIInsight[]) => {
+    if (data) {
+      const updatedData = { ...data, insights: newInsights };
+      setData(updatedData);
+      localStorage.setItem('repo_analysis', JSON.stringify(updatedData));
+    }
+  };
 
   if (!data) return null;
 
@@ -51,37 +62,80 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const menuItems = [
+    { id: 'home' as const, icon: Home, label: 'Home', onClick: () => navigate('/') },
+  ];
+
+  const panelItems = [
+    { id: 'readme' as const, icon: FileText, label: 'README' },
+    { id: 'chat' as const, icon: MessageSquare, label: 'AI Chat' },
+  ];
+
   return (
     <div className="flex h-screen w-screen overflow-hidden relative dashboard-layout">
-      {/* Activity Bar (Leftmost Navigation) */}
-      <div className="w-[50px] bg-[#101014] border-r border-white/10 flex flex-col items-center pt-4 z-40 shrink-0 md:flex-col md:h-full flex-row h-[50px] w-full md:w-[50px] fixed bottom-0 md:relative md:bottom-auto justify-between md:justify-start px-4 md:px-0">
-        <div className="flex flex-row md:flex-col gap-4 md:gap-0">
-           <button 
-            className="w-10 h-10 rounded-md flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 transition-all mb-2 cursor-pointer" 
-            title="Home"
-            onClick={() => navigate('/')}
-          >
-            <Home size={24} />
-          </button>
+      {/* Activity Bar (Leftmost Navigation) - Expandable */}
+      <div 
+        className={`bg-[#101014] border-r border-white/10 flex flex-col pt-4 z-40 shrink-0 transition-all duration-300 ease-out md:flex-col md:h-full flex-row h-[50px] fixed bottom-0 md:relative md:bottom-auto justify-between md:justify-start ${
+          activityBarExpanded ? 'w-[180px] px-3' : 'w-[50px] items-center px-0'
+        }`}
+      >
+        {/* Expand/Collapse Button - Desktop only */}
+        <button
+          onClick={() => setActivityBarExpanded(!activityBarExpanded)}
+          className="hidden md:flex w-full items-center justify-center gap-2 py-2 mb-4 text-gray-500 hover:text-white hover:bg-white/5 rounded-md transition-all cursor-pointer"
+          title={activityBarExpanded ? "Collapse menu" : "Expand menu"}
+        >
+          {activityBarExpanded ? <PanelLeftClose size={20} /> : <PanelLeft size={20} />}
+          {activityBarExpanded && <span className="text-sm">Collapse</span>}
+        </button>
+
+        {/* Top Menu Items */}
+        <div className={`flex flex-row md:flex-col gap-1 ${activityBarExpanded ? 'w-full' : ''}`}>
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              className={`flex items-center gap-3 rounded-md text-gray-500 hover:text-white hover:bg-white/5 transition-all cursor-pointer ${
+                activityBarExpanded ? 'w-full px-3 py-2.5 justify-start' : 'w-10 h-10 justify-center mb-2'
+              }`}
+              title={item.label}
+              onClick={item.onClick}
+            >
+              <item.icon size={activityBarExpanded ? 20 : 24} />
+              {activityBarExpanded && <span className="text-sm font-medium">{item.label}</span>}
+            </button>
+          ))}
         </div>
         
-        <div className="flex flex-row md:flex-col gap-4 md:gap-0">
-          <button 
-            className={`w-10 h-10 rounded-md flex items-center justify-center transition-all mb-2 cursor-pointer ${activeTab === 'readme' && sidebarOpen ? 'text-white bg-primary' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
-            title="README"
-            onClick={() => toggleSidebar('readme')}
-          >
-            <FileText size={24} />
-          </button>
-          
-          <button 
-            className={`w-10 h-10 rounded-md flex items-center justify-center transition-all mb-2 cursor-pointer ${activeTab === 'chat' && sidebarOpen ? 'text-white bg-primary' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
-            title="Chat with Repo"
-            onClick={() => toggleSidebar('chat')}
-          >
-            <MessageSquare size={24} />
-          </button>
+        {/* Separator */}
+        {activityBarExpanded && (
+          <div className="hidden md:block w-full h-px bg-white/10 my-3" />
+        )}
+        
+        {/* Panel Items */}
+        <div className={`flex flex-row md:flex-col gap-1 ${activityBarExpanded ? 'w-full' : ''}`}>
+          {activityBarExpanded && (
+            <span className="hidden md:block text-xs text-gray-500 uppercase tracking-wider px-3 mb-2">Panels</span>
+          )}
+          {panelItems.map((item) => {
+            const isActive = activeTab === item.id && sidebarOpen;
+            return (
+              <button
+                key={item.id}
+                className={`flex items-center gap-3 rounded-md transition-all cursor-pointer ${
+                  activityBarExpanded ? 'w-full px-3 py-2.5 justify-start' : 'w-10 h-10 justify-center mb-2'
+                } ${isActive ? 'text-white bg-primary' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                title={item.label}
+                onClick={() => toggleSidebar(item.id)}
+              >
+                <item.icon size={activityBarExpanded ? 20 : 24} />
+                {activityBarExpanded && <span className="text-sm font-medium">{item.label}</span>}
+              </button>
+            );
+          })}
         </div>
+
+        {/* Bottom spacer for mobile */}
+        <div className="flex-1 hidden md:block" />
       </div>
 
       {/* Sidebar Panel */}
@@ -168,7 +222,11 @@ const DashboardPage: React.FC = () => {
               <ScoreBreakdown breakdown={data.breakdown} />
             </div>
             <div className="h-full">
-              <InsightsPanel insights={data.insights} />
+              <InsightsPanel 
+                insights={data.insights} 
+                data={data}
+                onInsightsUpdate={handleInsightsUpdate}
+              />
             </div>
           </div>
         </div>
@@ -178,3 +236,4 @@ const DashboardPage: React.FC = () => {
 };
 
 export default DashboardPage;
+
