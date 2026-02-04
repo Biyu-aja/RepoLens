@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { getRepoFileStructure } from '../services/github';
 
 const router = Router();
 
@@ -25,7 +26,7 @@ interface ChatRequest {
     history: ChatMessage[];
 }
 
-const buildSystemPrompt = (repoContext: ChatRequest['repoContext']) => {
+const buildSystemPrompt = (repoContext: ChatRequest['repoContext'], fileStructure: string) => {
     return `You are RepoLens AI, an intelligent assistant that helps developers understand and improve their GitHub repositories.
 
 Current Repository: ${repoContext.owner}/${repoContext.name}
@@ -42,6 +43,9 @@ ${repoContext.insights.map(i => `Q: ${i.question}\nA: ${i.answer}`).join('\n\n')
 
 README Content:
 ${repoContext.readme.substring(0, 3000)}${repoContext.readme.length > 3000 ? '\n...(truncated)' : ''}
+
+Repository File Structure (Recursive):
+${fileStructure}
 
 Your role is to:
 1. Answer questions about this repository's code quality, structure, and documentation
@@ -75,8 +79,16 @@ router.post('/chat', async (req: Request, res: Response) => {
             return;
         }
 
+        // Fetch file structure
+        const structure = await getRepoFileStructure(repoContext.owner, repoContext.name);
+        // Limit structure size to avoid token overflow if huge
+        const limitedStructure = structure.slice(0, 500).map((f: any) => `- ${f.path}`).join('\n');
+        const structureString = structure.length > 500
+            ? `${limitedStructure}\n...(and ${structure.length - 500} more files)`
+            : limitedStructure;
+
         // Build messages array for the API
-        const systemPrompt = buildSystemPrompt(repoContext);
+        const systemPrompt = buildSystemPrompt(repoContext, structureString);
 
         const messages = [
             { role: 'system', content: systemPrompt },
@@ -96,7 +108,7 @@ router.post('/chat', async (req: Request, res: Response) => {
                 messages: messages,
                 max_tokens: 1024,
                 temperature: 0.7,
-                stream: false
+                stream: true
             })
         });
 
@@ -107,18 +119,57 @@ router.post('/chat', async (req: Request, res: Response) => {
             return;
         }
 
-        const data = await response.json();
+        // Set up streaming response
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
 
-        const aiResponse = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
 
-        res.json({
-            response: aiResponse,
-            model: aiModel
-        });
+        if (reader) {
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.trim().startsWith('data: ')) {
+                            const dataStr = line.replace('data: ', '').trim();
+                            if (dataStr === '[DONE]') continue;
+
+                            try {
+                                const parsed = JSON.parse(dataStr);
+                                const content = parsed.choices?.[0]?.delta?.content;
+                                if (content) {
+                                    res.write(content);
+                                }
+                            } catch (e) {
+                                // Ignore parse errors for partial chunks
+                            }
+                        }
+                    }
+                }
+            } catch (streamError) {
+                console.error('Streaming error:', streamError);
+            } finally {
+                res.end();
+            }
+        } else {
+            res.end();
+        }
 
     } catch (error: any) {
         console.error('Chat API Error:', error);
-        res.status(500).json({ error: error.message || 'Failed to process chat request' });
+        // If headers already sent, we can't send JSON error
+        if (!res.headersSent) {
+            res.status(500).json({ error: error.message || 'Failed to process chat request' });
+        } else {
+            res.end();
+        }
     }
 });
 

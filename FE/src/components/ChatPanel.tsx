@@ -86,7 +86,7 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessageToAI = async (userMessage: string): Promise<string> => {
+  const sendMessageToAI = async (userMessage: string, onChunk: (chunk: string) => void): Promise<string> => {
     const repoContext = {
       name: data.name,
       owner: data.owner,
@@ -113,8 +113,22 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
       throw new Error(error.error || 'Failed to get AI response');
     }
 
-    const result = await response.json();
-    return result.response;
+    if (!response.body) throw new Error('No response body');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullResponse = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      fullResponse += chunk;
+      onChunk(chunk);
+    }
+
+    return fullResponse;
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -133,33 +147,63 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
     setInput('');
     setLoading(true);
 
+    let aiMsgId: string | null = null;
+    let accumulatedResponse = '';
+
     try {
-      const responseText = await sendMessageToAI(userMessage);
+      const responseText = await sendMessageToAI(userMessage, (chunk) => {
+        accumulatedResponse += chunk;
+        
+        if (!aiMsgId) {
+          // First chunk received: Create message and stop loading
+          setLoading(false);
+          aiMsgId = (Date.now() + 1).toString();
+          const aiMsg: Message = {
+            id: aiMsgId,
+            role: 'ai',
+            content: accumulatedResponse,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, aiMsg]);
+        } else {
+          // Subsequent chunks: Update existing message
+          setMessages(prev => prev.map(msg => 
+            msg.id === aiMsgId ? { ...msg, content: accumulatedResponse } : msg
+          ));
+        }
+      });
       
-      // Update chat history for context
+      // Update chat history for context with full response
       setChatHistory(prev => [
         ...prev,
         { role: 'user', content: userMessage },
         { role: 'assistant', content: responseText }
       ]);
-
-      const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'ai',
-        content: responseText,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMsg]);
+      
     } catch (err: any) {
       console.error('Chat error:', err);
-      const errorMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'ai',
-        content: `⚠️ Sorry, I encountered an error: ${err.message}. Please try again.`,
-        timestamp: new Date(),
-        isError: true
-      };
-      setMessages(prev => [...prev, errorMsg]);
+      setLoading(false);
+      
+      const errorContent = `⚠️ Sorry, I encountered an error: ${err.message}. Please try again.`;
+      
+      if (aiMsgId) {
+        // Update the existing partial message with error
+         setMessages(prev => prev.map(msg => 
+          msg.id === aiMsgId 
+            ? { ...msg, content: msg.content + '\n\n' + errorContent, isError: true } 
+            : msg
+        ));
+      } else {
+        // Create new error message if none existed
+        const errorMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'ai',
+          content: errorContent,
+          timestamp: new Date(),
+          isError: true
+        };
+        setMessages(prev => [...prev, errorMsg]);
+      }
     } finally {
       setLoading(false);
     }
