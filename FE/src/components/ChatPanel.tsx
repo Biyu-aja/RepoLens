@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/github-dark.css';
 import type { RepoAnalysis } from '../types';
 
 interface Message {
@@ -173,30 +177,6 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
     setInput(prompt);
   };
 
-  // Render markdown-like content (basic)
-  const renderContent = (content: string) => {
-    return content.split('\n').map((line, i) => {
-      // Bold text
-      const boldLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      // Inline code
-      const codeLine = boldLine.replace(/`([^`]+)`/g, '<code class="bg-white/10 px-1 rounded text-primary">$1</code>');
-      
-      if (line.trim() === '') {
-        return <p key={i} className="mb-2" />;
-      }
-      
-      // List items
-      if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
-        return (
-          <p key={i} className="ml-2" dangerouslySetInnerHTML={{ __html: codeLine }} />
-        );
-      }
-      
-      return (
-        <p key={i} dangerouslySetInnerHTML={{ __html: codeLine }} />
-      );
-    });
-  };
 
   return (
     <div className="flex flex-col h-full bg-bg-card overflow-hidden">
@@ -227,8 +207,31 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
                   : 'bg-white/5 rounded-tl-sm text-gray-200' 
                 : 'bg-primary text-white rounded-tr-sm'
             }`}>
-              <div className="whitespace-pre-wrap">
-                {renderContent(msg.content)}
+              <div className="whitespace-normal">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                  components={{
+                    h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-2" {...props} />,
+                    h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-2" {...props} />,
+                    h3: ({node, ...props}) => <h3 className="text-md font-bold mb-1" {...props} />,
+                    p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+                    ul: ({node, ...props}) => <ul className="list-disc ml-4 mb-2" {...props} />,
+                    ol: ({node, ...props}) => <ol className="list-decimal ml-4 mb-2" {...props} />,
+                    li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                    a: ({node, ...props}) => <a className={`hover:underline ${msg.role === 'user' ? 'text-white underline decoration-white/50' : 'text-primary'}`} target="_blank" rel="noopener noreferrer" {...props} />,
+                    code: ({node, className, children, ...props}: any) => {
+                      const match = /language-(\w+)/.exec(className || '');
+                      const isInline = !match && !className?.includes('hljs');
+                      return isInline ? 
+                        <code className={`bg-black/20 px-1 py-0.5 rounded text-xs ${msg.role === 'user' ? 'text-white' : 'text-primary'}`} {...props}>{children}</code> :
+                        <code className={`${className} block bg-black/30 p-2 rounded-md text-sm overflow-x-auto my-2`} {...props}>{children}</code>
+                    },
+                    pre: ({node, ...props}) => <pre className="my-2 p-0 bg-transparent rounded-lg overflow-hidden" {...props} />,
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
               </div>
               <span className="block text-[10px] mt-1 opacity-60 text-right">
                 {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
