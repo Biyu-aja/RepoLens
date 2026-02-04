@@ -15,11 +15,11 @@ const ScoreBreakdown: React.FC<Props> = ({ breakdown }) => {
   ];
 
   return (
-    <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: 'var(--radius-lg)', height: '100%' }}>
-      <h3 style={{ marginBottom: '1rem', color: 'var(--color-text-muted)', fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+    <div className="bg-[#16161aa0] backdrop-blur-md p-6 rounded-lg h-full border border-white/5 shadow-lg flex flex-col">
+      <h3 className="mb-4 text-gray-400 text-sm uppercase tracking-wider font-medium">
         Score Breakdown
       </h3>
-      <div style={{ width: '100%', height: 200 }}>
+      <div className="flex-1 w-full min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
             <XAxis type="number" hide domain={[0, 100]} />
@@ -33,7 +33,8 @@ const ScoreBreakdown: React.FC<Props> = ({ breakdown }) => {
             />
             <Tooltip 
               cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-              contentStyle={{ backgroundColor: '#16161a', borderColor: '#27272a', color: '#fff' }}
+              contentStyle={{ backgroundColor: '#16161a', borderColor: '#27272a', color: '#fff', borderRadius: '8px' }}
+              itemStyle={{ color: '#fff' }}
             />
             <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={20}>
               {data.map((entry, index) => (
