@@ -24,20 +24,59 @@ const API_URL = 'http://localhost:3001/api';
 const ChatPanel: React.FC<Props> = ({ data }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'ai',
-      content: `👋 Hi! I'm powered by **Gemini AI**. I've analyzed **${data.name}** and I'm ready to help!\n\nAsk me anything about:\n• Code structure & quality\n• How to improve your scores\n• Best practices for this repo\n• Documentation suggestions`,
-      timestamp: new Date()
+  const storageKey = `chat_history_${data.owner}_${data.name}`;
+
+  const [chatHistory, setChatHistory] = useState<ChatHistory[]>(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        return JSON.parse(saved).chatHistory || [];
+      } catch (error) {
+        console.error('Failed to parse chat history:', error);
+      }
     }
-  ]);
+    return [];
+  });
+
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.messages.map((m: any) => ({
+          ...m,
+          timestamp: new Date(m.timestamp)
+        }));
+      } catch (error) {
+        console.error('Failed to parse messages:', error);
+      }
+    }
+    return [
+      {
+        id: 'welcome',
+        role: 'ai',
+        content: `👋 Hi! I'm powered by **Gemini AI**. I've analyzed **${data.name}** and I'm ready to help!\n\nAsk me anything about:\n• Code structure & quality\n• How to improve your scores\n• Best practices for this repo\n• Documentation suggestions`,
+        timestamp: new Date()
+      }
+    ];
+  });
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        messages,
+        chatHistory
+      }));
+    } catch (error) {
+      console.error('Failed to save chat history:', error);
+    }
+  }, [messages, chatHistory, storageKey]);
 
   useEffect(() => {
     scrollToBottom();

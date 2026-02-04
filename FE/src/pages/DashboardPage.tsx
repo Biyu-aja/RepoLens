@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Layout, GitBranch, Shield, Zap, Book, 
@@ -18,7 +18,14 @@ const DashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('readme');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activityBarExpanded, setActivityBarExpanded] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  // Minimum and maximum width for sidebar
+  const MIN_SIDEBAR_WIDTH = 300;
+  const MAX_SIDEBAR_WIDTH = 700;
 
   useEffect(() => {
     const stored = localStorage.getItem('repo_analysis');
@@ -41,6 +48,47 @@ const DashboardPage: React.FC = () => {
       localStorage.setItem('repo_analysis', JSON.stringify(updatedData));
     }
   };
+
+  // Mouse handlers for resizing
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    
+    const activityBarWidth = activityBarExpanded ? 180 : 50;
+    const newWidth = e.clientX - activityBarWidth;
+    
+    if (newWidth >= MIN_SIDEBAR_WIDTH && newWidth <= MAX_SIDEBAR_WIDTH) {
+      setSidebarWidth(newWidth);
+    }
+  }, [isResizing, activityBarExpanded]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  // Add/remove event listeners for resize
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
   if (!data) return null;
 
@@ -138,13 +186,18 @@ const DashboardPage: React.FC = () => {
         <div className="flex-1 hidden md:block" />
       </div>
 
-      {/* Sidebar Panel */}
-      <div className={`relative flex flex-col shrink-0 z-20 bg-bg-card transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarOpen ? 'w-full h-[calc(100%-50px)] absolute md:relative md:h-full md:w-[400px] border-r border-white/10' : 'w-0 border-r-0'}`}>
+      {/* Sidebar Panel - Resizable */}
+      <div 
+        ref={sidebarRef}
+        className={`relative flex flex-col shrink-0 z-20 bg-bg-card ${sidebarOpen ? 'h-[calc(100%-50px)] absolute md:relative md:h-full border-r border-white/10' : 'w-0 border-r-0'}`}
+        style={sidebarOpen ? { width: `${sidebarWidth}px` } : { width: 0 }}
+      >
         <div className="flex-1 overflow-hidden relative">
             {activeTab === 'readme' && <ReadmeViewer content={data.readme} />}
-            {activeTab === 'chat' && <ChatPanel data={data} />}
+            {activeTab === 'chat' && <ChatPanel key={`${data.owner}-${data.name}`} data={data} />}
         </div>
        
+        {/* Toggle button */}
         <button 
           className="absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-6 bg-bg-card border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-primary hover:border-primary cursor-pointer z-30 shadow-md hidden md:flex" 
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -152,6 +205,22 @@ const DashboardPage: React.FC = () => {
         >
           {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
         </button>
+
+        {/* Resize handle */}
+        {sidebarOpen && (
+          <div
+            onMouseDown={handleMouseDown}
+            className={`absolute top-0 -right-1 w-2 h-full cursor-col-resize z-40 group hidden md:block ${
+              isResizing ? 'bg-primary/50' : 'hover:bg-primary/30'
+            }`}
+            title="Drag to resize"
+          >
+            {/* Visual indicator line */}
+            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-12 rounded-full transition-all ${
+              isResizing ? 'bg-primary h-24' : 'bg-white/20 group-hover:bg-primary/60 group-hover:h-16'
+            }`} />
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
