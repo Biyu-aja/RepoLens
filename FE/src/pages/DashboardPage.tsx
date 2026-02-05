@@ -25,6 +25,7 @@ const DashboardPage: React.FC = () => {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState<string | null>(null); // Added selectedFile state
+  const [quotedCode, setQuotedCode] = useState<string | null>(null); // State for quoted code
 
   // Minimum and maximum width for sidebar
   const MIN_SIDEBAR_WIDTH = 300;
@@ -193,7 +194,9 @@ const DashboardPage: React.FC = () => {
               <ChatPanel 
                 key={`${data.owner}-${data.name}`} 
                 data={data} 
-                onFileClick={(path) => setSelectedFile(path)} 
+                onFileClick={(path) => setSelectedFile(path)}
+                externalQuote={quotedCode}
+                onClearQuote={() => setQuotedCode(null)}
               />
             )}
             {activeTab === 'explore' && <FileExplorer data={data} onFileSelect={(file) => setSelectedFile(file.path)} />} {/* Updated FileExplorer usage */}
@@ -228,7 +231,16 @@ const DashboardPage: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_top_right,#131318_0%,#0a0a0c_100%)] p-6 md:p-8 pb-20 md:pb-8">
         {selectedFile ? (
-          <FileViewer data={data} filePath={selectedFile} onClose={() => setSelectedFile(null)} />
+          <FileViewer 
+            data={data} 
+            filePath={selectedFile} 
+            onClose={() => setSelectedFile(null)}
+            onQuote={(text) => { 
+              setQuotedCode(`\`\`\`${selectedFile}\n${text}\n\`\`\``); 
+              setActiveTab('chat'); 
+              setSelectedFile(null); 
+            }}
+          />
         ) : (
           <>
             <header className="flex justify-between items-start mb-8 pb-6 border-b border-white/5 animate-[fadeIn_0.5s_ease-out]">

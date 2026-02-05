@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,14 +10,17 @@ interface Props {
     data: RepoAnalysis;
     filePath: string;
     onClose: () => void;
+    onQuote?: (text: string) => void;
 }
 
 const API_URL = 'http://localhost:3001/api';
 
-const FileViewer: React.FC<Props> = ({ data, filePath, onClose }) => {
+const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
     const [content, setContent] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string } | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const getLanguage = (path: string) => {
         if (path.endsWith('.ts') || path.endsWith('.tsx')) return 'typescript';
@@ -29,6 +32,43 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose }) => {
         return 'plaintext';
     };
 
+    useEffect(() => {
+        const handleSelection = () => {
+             const selection = window.getSelection();
+             if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+                 setSelectionMenu(null);
+                 return;
+             }
+ 
+             // Check if selection is inside this component
+             if (containerRef.current && !containerRef.current.contains(selection.anchorNode)) {
+                 return;
+             }
+ 
+             const range = selection.getRangeAt(0);
+             const rect = range.getBoundingClientRect();
+ 
+             setSelectionMenu({
+                 x: rect.left + rect.width / 2,
+                 y: rect.top - 10,
+                 text: selection.toString()
+             });
+        };
+ 
+        document.addEventListener('mouseup', handleSelection);
+        return () => document.removeEventListener('mouseup', handleSelection);
+     }, []);
+
+    const handleQuoteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (selectionMenu && onQuote) {
+            onQuote(selectionMenu.text);
+            setSelectionMenu(null);
+            window.getSelection()?.removeAllRanges();
+        }
+    };
+
+    // ... (fetchFile useEffect) ...
     useEffect(() => {
         const fetchFile = async () => {
             setLoading(true);
@@ -66,7 +106,7 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose }) => {
     }, [filePath, data.owner, data.name]);
 
     return (
-        <div className="flex flex-col h-full bg-[#16161a] rounded-xl border border-white/5 overflow-hidden">
+        <div ref={containerRef} className="flex flex-col h-full bg-[#16161a] rounded-xl border border-white/5 overflow-hidden relative">
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/10 bg-[#1e1e24] flex items-center justify-between">
                 <span className="text-sm font-mono text-gray-300">{filePath}</span>
@@ -74,6 +114,22 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose }) => {
                     <X size={18} />
                 </button>
             </div>
+            
+            {/* Selection Popup */}
+            {selectionMenu && (
+                <button
+                    className="fixed z-[100] bg-primary text-white text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2 animate-in fade-in zoom-in-95 duration-100 hover:bg-primary/90 cursor-pointer"
+                    style={{ 
+                        left: selectionMenu.x, 
+                        top: selectionMenu.y,
+                        transform: 'translateX(-50%) translateY(-100%)' 
+                    }}
+                    onClick={handleQuoteClick}
+                    onMouseDown={(e) => e.preventDefault()}
+                >
+                    <span className="font-bold">Quote Selection</span>
+                </button>
+            )}
 
             {/* Content */}
             <div className="flex-1 overflow-auto custom-scrollbar p-4">

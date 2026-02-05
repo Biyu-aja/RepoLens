@@ -22,19 +22,39 @@ interface ChatHistory {
 interface Props {
   data: RepoAnalysis;
   onFileClick?: (path: string) => void;
+  externalQuote?: string | null;
+  onClearQuote?: () => void;
 }
 
 const API_URL = 'http://localhost:3001/api';
 
-const ChatPanel: React.FC<Props> = ({ data, onFileClick }) => {
+const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQuote }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<{ message: Message; text?: string } | null>(null);
-  const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string; messageId: string } | null>(null);
+
   
+  const textareaRef = useRef<HTMLTextAreaElement>(null); // Added textareaRef
+
+  // Handle external quotes (e.g. from File Viewer)
+  useEffect(() => {
+    if (externalQuote) {
+       setInput(prev => {
+          const prefix = prev.trim() ? prev + '\n\n' : '';
+          return prefix + `I have a question about this code:\n${externalQuote}\n`;
+       });
+       if (textareaRef.current) {
+         textareaRef.current.focus();
+       }
+       if (onClearQuote) {
+         onClearQuote();
+       }
+    }
+  }, [externalQuote, onClearQuote]);
+
   const storageKey = `chat_history_${data.owner}_${data.name}`;
 
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>(() => {
@@ -93,60 +113,7 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick }) => {
     scrollToBottom();
   }, [messages]);
 
-  // Handle Text Selection
-  useEffect(() => {
-    const handleSelection = () => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed || !selection.toString().trim()) {
-        setSelectionMenu(null);
-        return;
-      }
 
-      const anchorNode = selection.anchorNode;
-      const focusNode = selection.focusNode;
-      if (!anchorNode || !focusNode) return;
-
-      const anchorEl = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : anchorNode as Element;
-      const messageContainer = anchorEl?.closest('[data-message-id]');
-
-      if (messageContainer) {
-        const messageId = messageContainer.getAttribute('data-message-id');
-        if (messageId) {
-          const range = selection.getRangeAt(0);
-          const rect = range.getBoundingClientRect();
-          
-          setSelectionMenu({
-            x: rect.left + (rect.width / 2),
-            y: rect.top - 40,
-            text: selection.toString().trim(),
-            messageId
-          });
-          return;
-        }
-      }
-      setSelectionMenu(null);
-    };
-
-    document.addEventListener('mouseup', handleSelection);
-    document.addEventListener('keyup', handleSelection); 
-
-    return () => {
-      document.removeEventListener('mouseup', handleSelection);
-      document.removeEventListener('keyup', handleSelection);
-    };
-  }, []);
-
-  const handleQuoteSelection = () => {
-    if (!selectionMenu) return;
-    const msg = messages.find(m => m.id === selectionMenu.messageId);
-    if (msg) {
-      setReplyingTo({ message: msg, text: selectionMenu.text });
-      window.getSelection()?.removeAllRanges();
-      setSelectionMenu(null);
-      const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
-      if (inputEl) inputEl.focus();
-    }
-  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -479,29 +446,7 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick }) => {
         <span className="text-xs text-gray-400 ml-auto">Gemini 3 Flash</span>
       </div>
 
-       {/* Floating Quote Button */}
-       {selectionMenu && (
-        <button
-          className="fixed z-[100] bg-[#1a1a1e] text-white text-xs px-3 py-1.5 rounded-full shadow-lg border border-white/20 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-100 hover:bg-primary hover:border-primary cursor-pointer max-w-[200px]"
-          style={{ 
-            left: selectionMenu.x, 
-            top: selectionMenu.y,
-            transform: 'translateX(-50%)' 
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleQuoteSelection();
-          }}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onMouseUp={(e) => e.stopPropagation()}
-        >
-          <Quote size={12} className="shrink-0" />
-          <span className="truncate">Quote "{selectionMenu.text}"</span>
-        </button>
-      )}
+
 
       {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 custom-scrollbar">
