@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import analyzeRoutes from './routes/analyze';
 import chatRoutes from './routes/chat';
+import filesRoutes from './routes/files';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json({ limit: '10mb' })); // Increased limit for repo context
 // Routes
 app.use('/api', analyzeRoutes);
 app.use('/api', chatRoutes);
+app.use('/api', filesRoutes);
 
 app.get('/', (req, res) => {
     res.send('RepoLens API is running');

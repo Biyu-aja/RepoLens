@@ -21,11 +21,12 @@ interface ChatHistory {
 
 interface Props {
   data: RepoAnalysis;
+  onFileClick?: (path: string) => void;
 }
 
 const API_URL = 'http://localhost:3001/api';
 
-const ChatPanel: React.FC<Props> = ({ data }) => {
+const ChatPanel: React.FC<Props> = ({ data, onFileClick }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -637,6 +638,26 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
                         code: ({node, className, children, ...props}: any) => {
                           const match = /language-(\w+)/.exec(className || '');
                           const isInline = !match && !className?.includes('hljs');
+                          const content = String(children).replace(/\n$/, '');
+                          
+                          // Simple file path detection: no spaces, has dot extension OR is special file like Dockerfile
+                          const isFilePath = isInline && 
+                                           !content.includes(' ') && 
+                                           /^[a-zA-Z0-9_\-\./\\]+\.[a-zA-Z0-9]+$/.test(content);
+
+                          if (isFilePath && onFileClick) {
+                              return (
+                                <code 
+                                  className={`bg-primary/20 px-1 py-0.5 rounded text-xs break-all text-primary cursor-pointer hover:underline hover:bg-primary/30 transition-colors`} 
+                                  onClick={() => onFileClick(content)}
+                                  title="Open file"
+                                  {...props}
+                                >
+                                  {children}
+                                </code>
+                              );
+                          }
+
                           return isInline ? 
                             <code className={`bg-black/20 px-1 py-0.5 rounded text-xs break-all ${msg.role === 'user' ? 'text-white' : 'text-primary'}`} {...props}>{children}</code> :
                             <code className={`${className} block bg-black/30 p-2 rounded-md text-sm my-2 text-wrap`} {...props}>{children}</code>
