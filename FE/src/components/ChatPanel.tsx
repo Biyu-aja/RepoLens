@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, AlertCircle, Pencil, Trash2, X, Check, MoreHorizontal, Copy, RefreshCw, Quote } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -28,6 +28,12 @@ const API_URL = 'http://localhost:3001/api';
 const ChatPanel: React.FC<Props> = ({ data }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<{ message: Message; text?: string } | null>(null);
+  const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string; messageId: string } | null>(null);
+  
   const storageKey = `chat_history_${data.owner}_${data.name}`;
 
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>(() => {
@@ -86,7 +92,80 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessageToAI = async (userMessage: string, onChunk: (chunk: string) => void): Promise<string> => {
+  // Handle Text Selection
+  useEffect(() => {
+    const handleSelection = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+        setSelectionMenu(null);
+        return;
+      }
+
+      const anchorNode = selection.anchorNode;
+      const focusNode = selection.focusNode;
+      if (!anchorNode || !focusNode) return;
+
+      const anchorEl = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : anchorNode as Element;
+      const messageContainer = anchorEl?.closest('[data-message-id]');
+
+      if (messageContainer) {
+        const messageId = messageContainer.getAttribute('data-message-id');
+        if (messageId) {
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          
+          setSelectionMenu({
+            x: rect.left + (rect.width / 2),
+            y: rect.top - 40,
+            text: selection.toString().trim(),
+            messageId
+          });
+          return;
+        }
+      }
+      setSelectionMenu(null);
+    };
+
+    document.addEventListener('mouseup', handleSelection);
+    document.addEventListener('keyup', handleSelection); 
+
+    return () => {
+      document.removeEventListener('mouseup', handleSelection);
+      document.removeEventListener('keyup', handleSelection);
+    };
+  }, []);
+
+  const handleQuoteSelection = () => {
+    if (!selectionMenu) return;
+    const msg = messages.find(m => m.id === selectionMenu.messageId);
+    if (msg) {
+      setReplyingTo({ message: msg, text: selectionMenu.text });
+      window.getSelection()?.removeAllRanges();
+      setSelectionMenu(null);
+      const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
+      if (inputEl) inputEl.focus();
+    }
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (target.closest('.message-menu-trigger') || target.closest('.message-menu-dropdown')) {
+        return;
+      }
+      setActiveMenuId(null);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const sendMessageToAI = async (userMessage: string, currentHistory: ChatHistory[], onChunk: (chunk: string) => void): Promise<string> => {
+    console.log('[Chat] Sending message to AI...', { length: userMessage.length, historySize: currentHistory.length });
+    
     const repoContext = {
       name: data.name,
       owner: data.owner,
@@ -96,66 +175,71 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
       insights: data.insights
     };
 
-    const response = await fetch(`${API_URL}/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: userMessage,
-        repoContext,
-        history: chatHistory
-      })
-    });
+    try {
+        const response = await fetch(`${API_URL}/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: userMessage,
+            repoContext,
+            history: currentHistory
+          })
+        });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to get AI response');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[Chat] API response not OK:', response.status, errorData);
+          throw new Error(errorData.error || `Request failed with status ${response.status}`);
+        }
+
+        if (!response.body) {
+            console.error('[Chat] Response has no body');
+            throw new Error('No response body');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
+        console.log('[Chat] Stream started');
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+              console.log('[Chat] Stream complete');
+              break;
+          }
+          
+          const chunk = decoder.decode(value, { stream: true });
+          // console.log('[Chat] Chunk received:', chunk.length); 
+          fullResponse += chunk;
+          onChunk(chunk);
+        }
+
+        return fullResponse;
+    } catch (error) {
+        console.error('[Chat] Error in sendMessageToAI:', error);
+        throw error;
     }
-
-    if (!response.body) throw new Error('No response body');
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let fullResponse = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value, { stream: true });
-      fullResponse += chunk;
-      onChunk(chunk);
-    }
-
-    return fullResponse;
   };
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
+  const processMessage = async (messageText: string, updatedHistory: ChatHistory[]) => {
+    if (!messageText.trim() || loading) return;
 
-    const userMessage = input.trim();
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: userMessage,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
+    console.log('[Chat] Processing message:', messageText.substring(0, 50) + '...');
     setLoading(true);
 
     let aiMsgId: string | null = null;
     let accumulatedResponse = '';
 
     try {
-      const responseText = await sendMessageToAI(userMessage, (chunk) => {
+      const responseText = await sendMessageToAI(messageText, updatedHistory, (chunk) => {
         accumulatedResponse += chunk;
         
         if (!aiMsgId) {
-          // First chunk received: Create message and stop loading
+          // First chunk received
+          // console.log('[Chat] First chunk received, creating message');
           setLoading(false);
           aiMsgId = (Date.now() + 1).toString();
           const aiMsg: Message = {
@@ -166,35 +250,39 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
           };
           setMessages(prev => [...prev, aiMsg]);
         } else {
-          // Subsequent chunks: Update existing message
+          // Update existing
           setMessages(prev => prev.map(msg => 
             msg.id === aiMsgId ? { ...msg, content: accumulatedResponse } : msg
           ));
         }
       });
+
+      if (!aiMsgId) {
+        console.error('[Chat] Finished but no aiMsgId created. Response length:', accumulatedResponse.length);
+        throw new Error('Received empty response from AI service');
+      }
       
-      // Update chat history for context with full response
-      setChatHistory(prev => [
-        ...prev,
-        { role: 'user', content: userMessage },
+      console.log('[Chat] Message processed successfully');
+      
+      // Update chat history
+      setChatHistory([...updatedHistory, 
+        { role: 'user', content: messageText },
         { role: 'assistant', content: responseText }
       ]);
       
     } catch (err: any) {
-      console.error('Chat error:', err);
+      console.error('[Chat] processMessage error:', err);
       setLoading(false);
       
       const errorContent = `⚠️ Sorry, I encountered an error: ${err.message}. Please try again.`;
       
       if (aiMsgId) {
-        // Update the existing partial message with error
-         setMessages(prev => prev.map(msg => 
+        setMessages(prev => prev.map(msg => 
           msg.id === aiMsgId 
             ? { ...msg, content: msg.content + '\n\n' + errorContent, isError: true } 
             : msg
         ));
       } else {
-        // Create new error message if none existed
         const errorMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: 'ai',
@@ -209,6 +297,123 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
     }
   };
 
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    let finalMessage = input.trim();
+    
+    // If replying, wrap the context
+    if (replyingTo) {
+        // Use selected text OR full message content
+        const quotedText = replyingTo.text || replyingTo.message.content;
+        
+        const replyContext = `> **Replying to ${replyingTo.message.role === 'ai' ? 'AI' : 'User'}:**\n> "${quotedText}"\n\n`;
+        finalMessage = `${replyContext}${finalMessage}`;
+    }
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: finalMessage,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setReplyingTo(null); // Clear reply state
+    
+    // Pass current history
+    await processMessage(finalMessage, chatHistory);
+  };
+
+  const handleReply = (msg: Message) => {
+    setReplyingTo({ message: msg });
+    setActiveMenuId(null);
+    // Focus input
+    const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
+    if (inputEl) inputEl.focus();
+  };
+
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content);
+    setActiveMenuId(null);
+  };
+
+// ... (handleDeleteMessage, handleStartEdit, handleCancelEdit, handleSubmitEdit, handleQuickAction, handleRegenerate unchanged)
+
+  // NOTE: I'm skipping the middle parts to focus on the replacing the rendering part where the MENU is. 
+  // Wait, I can't skip parts with replace_file_content unless I use multiple chunks or target specific blocks. 
+  // I will just replace the WHOLE render map block and the input block.
+
+  // ... skip ...
+
+  // I will target the `handleSend` first, then I'll use another call for the menu and input to avoid massive context.
+  // Actually, I'll do `handleSend` + `handleReply` + `handleCopy` block first.
+
+
+  // Delete Message
+  const handleDeleteMessage = (id: string) => {
+    setMessages(prev => prev.filter(msg => msg.id !== id));
+    // Note: We don't strictly sync chatHistory on delete to avoid complex mapping, 
+    // unless we strictly rebuild it. For simple delete, removing from view is often enough.
+    // However, for "Edit", strict rewind is needed.
+    // Ideally, we should rebuild history from remaining messages.
+    // Rebuilding history from messages state is safer:
+    const remainingMessages = messages.filter(msg => msg.id !== id);
+    const newHistory: ChatHistory[] = remainingMessages
+       .filter(m => !m.isError && m.id !== 'welcome')
+       .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
+    setChatHistory(newHistory);
+    setActiveMenuId(null);
+  };
+
+  // Edit Message
+  const handleStartEdit = (msg: Message) => {
+    setEditingMessageId(msg.id);
+    setEditContent(msg.content);
+    setActiveMenuId(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const handleSubmitEdit = async (id: string) => {
+    if (!editContent.trim()) return;
+    
+    // Find index of message
+    const index = messages.findIndex(m => m.id === id);
+    if (index === -1) return;
+
+    // Keep everything BEFORE this message
+    const keptMessages = messages.slice(0, index);
+    
+    // Create new edited message
+    const newMsg: Message = {
+      id: Date.now().toString(), // New ID
+      role: 'user',
+      content: editContent,
+      timestamp: new Date() // New timestamp
+    };
+
+    // Update state to rewind
+    setMessages([...keptMessages, newMsg]);
+    setEditingMessageId(null);
+    setEditContent('');
+
+    // Rebuild history from kept messages
+    const keptHistory: ChatHistory[] = keptMessages
+      .filter(m => !m.isError && m.id !== 'welcome')
+      .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
+    
+    setChatHistory(keptHistory);
+
+    // Process new message
+    await processMessage(editContent, keptHistory);
+  };
+
   // Quick action buttons
   const quickActions = [
     { label: '📊 Score Details', prompt: 'Explain my repository scores in detail' },
@@ -221,6 +426,48 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
     setInput(prompt);
   };
 
+  const handleRegenerate = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    
+    // Debugging logs
+    console.log('Regenerate clicked');
+    if (loading) {
+      console.log('Regenerate blocked: Loading is true');
+      return;
+    }
+
+    const lastMsgIndex = messages.length - 1;
+    const lastMsg = messages[lastMsgIndex];
+    console.log('Last message:', lastMsg);
+
+    if (!lastMsg || lastMsg.role !== 'ai') {
+      console.log('Regenerate cancelled: Last message is not AI or missing');
+      return;
+    }
+    
+    const lastUserMsgIndex = messages.length - 2;
+    const lastUserMsg = messages[lastUserMsgIndex];
+    console.log('Last user message:', lastUserMsg);
+    
+    // Safety check: must have a preceding user message
+    if (!lastUserMsg || lastUserMsg.role !== 'user') {
+      console.log('Regenerate cancelled: Preceding message is not User');
+      return;
+    }
+
+    // Remove the last AI message
+    const newMessages = messages.slice(0, -1);
+    setMessages(newMessages);
+
+    // Revert history
+    const newHistory = chatHistory.slice(0, -2); 
+    setChatHistory(newHistory);
+    setActiveMenuId(null);
+
+    console.log('Processing regeneration for content:', lastUserMsg.content.substring(0, 50));
+    // Process again with the same user message content
+    await processMessage(lastUserMsg.content, newHistory);
+  };
 
   return (
     <div className="flex flex-col h-full bg-bg-card overflow-hidden">
@@ -231,10 +478,35 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
         <span className="text-xs text-gray-400 ml-auto">Gemini 3 Flash</span>
       </div>
 
+       {/* Floating Quote Button */}
+       {selectionMenu && (
+        <button
+          className="fixed z-[100] bg-[#1a1a1e] text-white text-xs px-3 py-1.5 rounded-full shadow-lg border border-white/20 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-100 hover:bg-primary hover:border-primary cursor-pointer max-w-[200px]"
+          style={{ 
+            left: selectionMenu.x, 
+            top: selectionMenu.y,
+            transform: 'translateX(-50%)' 
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleQuoteSelection();
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onMouseUp={(e) => e.stopPropagation()}
+        >
+          <Quote size={12} className="shrink-0" />
+          <span className="truncate">Quote "{selectionMenu.text}"</span>
+        </button>
+      )}
+
       {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 custom-scrollbar">
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex gap-3 max-w-[90%] ${msg.role === 'user' ? 'self-end flex-row-reverse' : 'self-start'}`}>
+        {messages.map((msg, index) => (
+          <div key={msg.id} className={`group flex gap-3 max-w-[90%] ${msg.role === 'user' ? 'self-end flex-row-reverse' : 'self-start'}`}>
+            {/* Avatar */}
             <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
               msg.role === 'ai' 
                 ? msg.isError 
@@ -244,42 +516,142 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
             }`}>
               {msg.role === 'ai' ? (msg.isError ? <AlertCircle size={16} /> : <Bot size={16} />) : <User size={16} />}
             </div>
-            <div className={`py-2 px-3 rounded-lg text-sm leading-relaxed ${
+
+            {/* Bubble */}
+            <div 
+              data-message-id={msg.id}
+              className={`relative py-2 px-3 rounded-lg text-sm leading-relaxed ${
               msg.role === 'ai' 
                 ? msg.isError
                   ? 'bg-red-500/10 border border-red-500/20 rounded-tl-sm text-red-200'
                   : 'bg-white/5 rounded-tl-sm text-gray-200' 
                 : 'bg-primary text-white rounded-tr-sm'
-            }`}>
-              <div className="whitespace-normal">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeHighlight]}
-                  components={{
-                    h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-2" {...props} />,
-                    h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-2" {...props} />,
-                    h3: ({node, ...props}) => <h3 className="text-md font-bold mb-1" {...props} />,
-                    p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
-                    ul: ({node, ...props}) => <ul className="list-disc ml-4 mb-2" {...props} />,
-                    ol: ({node, ...props}) => <ol className="list-decimal ml-4 mb-2" {...props} />,
-                    li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                    a: ({node, ...props}) => <a className={`hover:underline ${msg.role === 'user' ? 'text-white underline decoration-white/50' : 'text-primary'}`} target="_blank" rel="noopener noreferrer" {...props} />,
-                    code: ({node, className, children, ...props}: any) => {
-                      const match = /language-(\w+)/.exec(className || '');
-                      const isInline = !match && !className?.includes('hljs');
-                      return isInline ? 
-                        <code className={`bg-black/20 px-1 py-0.5 rounded text-xs ${msg.role === 'user' ? 'text-white' : 'text-primary'}`} {...props}>{children}</code> :
-                        <code className={`${className} block bg-black/30 p-2 rounded-md text-sm overflow-x-auto my-2`} {...props}>{children}</code>
-                    },
-                    pre: ({node, ...props}) => <pre className="my-2 p-0 bg-transparent rounded-lg overflow-hidden" {...props} />,
-                  }}
-                >
-                  {msg.content}
-                </ReactMarkdown>
-              </div>
-              <span className="block text-[10px] mt-1 opacity-60 text-right">
-                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
+            } pr-8`}
+            >
+              
+              {/* Menu Trigger (Visible on Hover or Active) */}
+              {!editingMessageId && !loading && (
+                <div className="absolute top-1 right-1 z-10">
+                   <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMenuId(activeMenuId === msg.id ? null : msg.id);
+                    }}
+                    className={`message-menu-trigger p-1 rounded-full transition-all ${
+                      activeMenuId === msg.id 
+                        ? 'bg-black/40 text-white opacity-100' 
+                        : 'text-white/50 hover:text-white hover:bg-black/20 opacity-0 group-hover:opacity-100'
+                    }`}
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {activeMenuId === msg.id && (
+                    <div className="message-menu-dropdown absolute top-6 right-0 z-50 py-1 min-w-[140px] bg-[#1E1E24] border border-white/10 rounded-lg shadow-xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                       <button
+                        onClick={() => handleReply(msg)}
+                        className="w-full px-3 py-2 text-left text-xs text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
+                      >
+                        <Quote size={12} />
+                        Reply
+                      </button>
+
+                       <button
+                        onClick={() => handleCopy(msg.content)}
+                        className="w-full px-3 py-2 text-left text-xs text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
+                      >
+                        <Copy size={12} />
+                        Copy
+                      </button>
+
+                      {/* Regenerate Option (Only for last AI message) */}
+                      {msg.role === 'ai' && index === messages.length - 1 && (
+                        <button
+                          onClick={handleRegenerate}
+                          className="w-full px-3 py-2 text-left text-xs text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
+                        >
+                          <RefreshCw size={12} />
+                          Regenerate
+                        </button>
+                      )}
+                      
+                      {msg.role === 'user' && (
+                        <button
+                          onClick={() => handleStartEdit(msg)}
+                          className="w-full px-3 py-2 text-left text-xs text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
+                        >
+                          <Pencil size={12} />
+                          Edit
+                        </button>
+                      )}
+                      
+                      <div className="h-[1px] bg-white/5 my-1" />
+                      
+                      <button
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="w-full px-3 py-2 text-left text-xs text-red-400 hover:text-red-300 hover:bg-white/5 flex items-center gap-2"
+                      >
+                        <Trash2 size={12} />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Message Content */}
+              {editingMessageId === msg.id ? (
+                <div className="flex flex-col gap-2 min-w-[200px]">
+                   <textarea 
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="bg-black/20 text-white rounded p-1 whitespace-pre-wrap outline-none resize-none"
+                    autoFocus
+                    rows={3}
+                  />
+                  <div className="flex items-center gap-2 justify-end">
+                    <button onClick={handleCancelEdit} className="p-1 hover:bg-white/10 rounded cursor-pointer text-white/70 hover:text-white">
+                      <X size={14} />
+                    </button>
+                    <button onClick={() => handleSubmitEdit(msg.id)} className="p-1 bg-white/20 hover:bg-white/30 rounded cursor-pointer text-white">
+                      <Check size={14} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="whitespace-normal break-words min-w-0">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeHighlight]}
+                      components={{
+                        h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-2 break-words" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-2 break-words" {...props} />,
+                        h3: ({node, ...props}) => <h3 className="text-md font-bold mb-1 break-words" {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed break-words" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc ml-4 mb-2" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal ml-4 mb-2" {...props} />,
+                        li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                        a: ({node, ...props}) => <a className={`hover:underline break-all ${msg.role === 'user' ? 'text-white underline decoration-white/50' : 'text-primary'}`} target="_blank" rel="noopener noreferrer" {...props} />,
+                        code: ({node, className, children, ...props}: any) => {
+                          const match = /language-(\w+)/.exec(className || '');
+                          const isInline = !match && !className?.includes('hljs');
+                          return isInline ? 
+                            <code className={`bg-black/20 px-1 py-0.5 rounded text-xs break-all ${msg.role === 'user' ? 'text-white' : 'text-primary'}`} {...props}>{children}</code> :
+                            <code className={`${className} block bg-black/30 p-2 rounded-md text-sm my-2 text-wrap`} {...props}>{children}</code>
+                        },
+                        pre: ({node, ...props}) => <pre className="my-2 p-0 bg-transparent rounded-lg overflow-x-auto max-w-full" {...props} />,
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                  <span className="block text-[10px] mt-1 opacity-60 text-right">
+                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -310,6 +682,24 @@ const ChatPanel: React.FC<Props> = ({ data }) => {
               {action.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Reply Preview */}
+      {replyingTo && (
+        <div className="px-4 py-2 bg-[#16161acc] border-t border-white/10 flex items-center justify-between animate-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2 text-xs text-gray-400 overflow-hidden w-full">
+                <Quote size={12} className="shrink-0" />
+                <div className="flex flex-col overflow-hidden w-full">
+                  <span className="font-medium text-primary text-[10px] uppercase tracking-wider">Replying to {replyingTo.message.role === 'ai' ? 'AI' : 'User'}</span>
+                  <span className="truncate italic text-gray-300">
+                    {replyingTo.text ? `"${replyingTo.text}"` : replyingTo.message.content}
+                  </span>
+                </div>
+            </div>
+             <button onClick={() => setReplyingTo(null)} className="text-gray-500 hover:text-white p-1 ml-2 shrink-0">
+                <X size={14} />
+            </button>
         </div>
       )}
 

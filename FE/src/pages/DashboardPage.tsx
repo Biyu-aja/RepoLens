@@ -127,15 +127,6 @@ const DashboardPage: React.FC = () => {
           activityBarExpanded ? 'w-[180px] px-3' : 'w-[50px] items-center px-0'
         }`}
       >
-        {/* Expand/Collapse Button - Desktop only */}
-        <button
-          onClick={() => setActivityBarExpanded(!activityBarExpanded)}
-          className="hidden md:flex w-full items-center justify-center gap-2 py-2 mb-4 text-gray-500 hover:text-white hover:bg-white/5 rounded-md transition-all cursor-pointer"
-          title={activityBarExpanded ? "Collapse menu" : "Expand menu"}
-        >
-          {activityBarExpanded ? <PanelLeftClose size={20} /> : <PanelLeft size={20} />}
-          {activityBarExpanded && <span className="text-sm">Collapse</span>}
-        </button>
 
         {/* Top Menu Items */}
         <div className={`flex flex-row md:flex-col gap-1 ${activityBarExpanded ? 'w-full' : ''}`}>

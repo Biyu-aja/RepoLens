@@ -75,17 +75,22 @@ router.post('/chat', async (req: Request, res: Response) => {
         const aiModel = process.env.AI_MODEL || 'gemini-2.0-flash';
 
         if (!apiKey) {
+            console.error('[BE] AI API key missing');
             res.status(500).json({ error: 'AI API key not configured' });
             return;
         }
 
         // Fetch file structure
+        console.log('[BE] Fetching file structure...');
         const structure = await getRepoFileStructure(repoContext.owner, repoContext.name);
+
         // Limit structure size to avoid token overflow if huge
         const limitedStructure = structure.slice(0, 500).map((f: any) => `- ${f.path}`).join('\n');
         const structureString = structure.length > 500
             ? `${limitedStructure}\n...(and ${structure.length - 500} more files)`
             : limitedStructure;
+
+        console.log(`[BE] Structure prepared. Files: ${structure.length}, String length: ${structureString.length}`);
 
         // Build messages array for the API
         const systemPrompt = buildSystemPrompt(repoContext, structureString);
@@ -95,6 +100,8 @@ router.post('/chat', async (req: Request, res: Response) => {
             ...history.slice(-10), // Keep last 10 messages for context
             { role: 'user', content: message }
         ];
+
+        console.log(`[BE] Calling AI Model (${aiModel})... Context messages: ${messages.length}`);
 
         // Call Gemini 3 Flash through the gateway
         const response = await fetch(`${apiUrl}/chat/completions`, {
@@ -106,7 +113,7 @@ router.post('/chat', async (req: Request, res: Response) => {
             body: JSON.stringify({
                 model: aiModel,
                 messages: messages,
-                max_tokens: 1024,
+                max_tokens: 4096,
                 temperature: 0.7,
                 stream: true
             })
@@ -114,10 +121,12 @@ router.post('/chat', async (req: Request, res: Response) => {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('AI API Error:', errorText);
+            console.error('[BE] AI API Error:', response.status, errorText);
             res.status(response.status).json({ error: 'AI service error', details: errorText });
             return;
         }
+
+        console.log('[BE] AI Response received. Streaming...');
 
         // Set up streaming response
         res.setHeader('Content-Type', 'text/event-stream');
@@ -131,7 +140,10 @@ router.post('/chat', async (req: Request, res: Response) => {
             try {
                 while (true) {
                     const { done, value } = await reader.read();
-                    if (done) break;
+                    if (done) {
+                        console.log('[BE] Stream finished successfully');
+                        break;
+                    }
 
                     const chunk = decoder.decode(value);
                     const lines = chunk.split('\n');
