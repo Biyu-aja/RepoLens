@@ -93,7 +93,11 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [replyingTo, setReplyingTo] = useState<{ message: Message; text?: string } | null>(null);
+  const [replyingTo, setReplyingTo] = useState<
+    | { type: 'chat'; message: Message; text?: string } 
+    | { type: 'file'; text: string } 
+    | null
+  >(null);
   const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string; messageId: string } | null>(null);
 
   
@@ -102,13 +106,12 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
   // Handle external quotes (e.g. from File Viewer)
   useEffect(() => {
     if (externalQuote) {
-       setInput(prev => {
-          const prefix = prev.trim() ? prev + '\n\n' : '';
-          return prefix + `I have a question about this code:\n${externalQuote}\n`;
-       });
-       if (textareaRef.current) {
-         textareaRef.current.focus();
-       }
+        setReplyingTo({ type: 'file', text: externalQuote });
+        
+        // Focus input
+        const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
+        if (inputEl) inputEl.focus();
+
        if (onClearQuote) {
          onClearQuote();
        }
@@ -248,7 +251,7 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
     if (!selectionMenu) return;
     const msg = messages.find(m => m.id === selectionMenu.messageId);
     if (msg) {
-        setReplyingTo({ message: msg, text: selectionMenu.text });
+        setReplyingTo({ type: 'chat', message: msg, text: selectionMenu.text });
         setSelectionMenu(null);
         const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
         if (inputEl) inputEl.focus();
@@ -397,11 +400,14 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
     
     // If replying, wrap the context
     if (replyingTo) {
-        // Use selected text OR full message content
-        const quotedText = replyingTo.text || replyingTo.message.content;
-        
-        const replyContext = `> **Replying to ${replyingTo.message.role === 'ai' ? 'AI' : 'User'}:**\n> "${quotedText}"\n\n`;
-        finalMessage = `${replyContext}${finalMessage}`;
+        if (replyingTo.type === 'chat') {
+            // Use selected text OR full message content
+            const quotedText = replyingTo.text || replyingTo.message.content;
+            const replyContext = `> **Replying to ${replyingTo.message.role === 'ai' ? 'AI' : 'User'}:**\n> "${quotedText}"\n\n`;
+            finalMessage = `${replyContext}${finalMessage}`;
+        } else {
+             finalMessage = `I have a question about this code:\n${replyingTo.text}\n\n${finalMessage}`;
+        }
     }
 
     const userMsg: Message = {
@@ -420,7 +426,7 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
   };
 
   const handleReply = (msg: Message) => {
-    setReplyingTo({ message: msg });
+    setReplyingTo({ type: 'chat', message: msg });
     setActiveMenuId(null);
     // Focus input
     const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
@@ -728,15 +734,23 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
         </div>
       )}
 
-      {/* Reply Preview */}
+       {/* Reply Preview */}
       {replyingTo && (
         <div className="px-4 py-2 bg-[#16161acc] border-t border-white/10 flex items-center justify-between animate-in slide-in-from-bottom-2">
             <div className="flex items-center gap-2 text-xs text-gray-400 overflow-hidden w-full">
                 <Quote size={12} className="shrink-0" />
                 <div className="flex flex-col overflow-hidden w-full">
-                  <span className="font-medium text-primary text-[10px] uppercase tracking-wider">Replying to {replyingTo.message.role === 'ai' ? 'AI' : 'User'}</span>
+                  <span className="font-medium text-primary text-[10px] uppercase tracking-wider">
+                    {replyingTo.type === 'chat' 
+                        ? `Replying to ${replyingTo.message.role === 'ai' ? 'AI' : 'User'}`
+                        : 'Referencing File'
+                    }
+                  </span>
                   <span className="truncate italic text-gray-300">
-                    {replyingTo.text ? `"${replyingTo.text}"` : replyingTo.message.content}
+                    {replyingTo.type === 'chat'
+                        ? (replyingTo.text ? `"${replyingTo.text}"` : replyingTo.message.content)
+                        : replyingTo.text
+                    }
                   </span>
                 </div>
             </div>

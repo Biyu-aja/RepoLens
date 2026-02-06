@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, Quote } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -15,13 +15,7 @@ interface Props {
 
 const API_URL = 'http://localhost:3001/api';
 
-const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
-    const [content, setContent] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string } | null>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-
+const FileContent = React.memo(({ content, filePath }: { content: string | null, filePath: string }) => {
     const getLanguage = (path: string) => {
         if (path.endsWith('.ts') || path.endsWith('.tsx')) return 'typescript';
         if (path.endsWith('.js') || path.endsWith('.jsx')) return 'javascript';
@@ -31,6 +25,33 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
         if (path.endsWith('.md')) return 'markdown';
         return 'plaintext';
     };
+
+    return (
+        <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+            components={{
+                code({node, className, children, ...props}: any) {
+                    return <code className={`${getLanguage(filePath)} block text-sm font-mono`} {...props}>{children}</code>
+                },
+                pre({node, ...props}) {
+                    return <pre className="bg-transparent p-0 m-0" {...props} />
+                }
+            }}
+        >
+            {`\`\`\`${getLanguage(filePath)}\n${content || ''}\n\`\`\``}
+        </ReactMarkdown>
+    );
+});
+
+const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
+    const [content, setContent] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string } | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Removed getLanguage from here as it moved to FileContent
 
     useEffect(() => {
         const handleSelection = () => {
@@ -118,16 +139,13 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
             {/* Selection Popup */}
             {selectionMenu && (
                 <button
-                    className="fixed z-[100] bg-primary text-white text-xs px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2 animate-in fade-in zoom-in-95 duration-100 hover:bg-primary/90 cursor-pointer"
-                    style={{ 
-                        left: selectionMenu.x, 
-                        top: selectionMenu.y,
-                        transform: 'translateX(-50%) translateY(-100%)' 
-                    }}
                     onClick={handleQuoteClick}
+                    className="fixed z-[100] transform -translate-x-1/2 px-3 py-1.5 bg-[#1E1E24] border border-white/10 text-white text-xs font-medium rounded-full shadow-xl flex items-center gap-2 hover:bg-primary hover:border-primary transition-all animate-in fade-in zoom-in-95 duration-200"
+                    style={{ left: selectionMenu.x, top: selectionMenu.y }}
                     onMouseDown={(e) => e.preventDefault()}
                 >
-                    <span className="font-bold">Quote Selection</span>
+                    <Quote size={12} />
+                    <span className="font-bold">Quote</span>
                 </button>
             )}
 
@@ -144,20 +162,7 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
                         <button onClick={() => window.location.reload()} className="text-xs text-primary hover:underline">Retry</button>
                     </div>
                 ) : (
-                     <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeHighlight]}
-                        components={{
-                            code({node, className, children, ...props}: any) {
-                                return <code className={`${getLanguage(filePath)} block text-sm font-mono`} {...props}>{children}</code>
-                            },
-                            pre({node, ...props}) {
-                                return <pre className="bg-transparent p-0 m-0" {...props} />
-                            }
-                        }}
-                    >
-                        {`\`\`\`${getLanguage(filePath)}\n${content || ''}\n\`\`\``}
-                    </ReactMarkdown>
+                     <FileContent content={content} filePath={filePath} />
                 )}
             </div>
         </div>
