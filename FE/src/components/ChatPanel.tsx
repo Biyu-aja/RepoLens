@@ -24,11 +24,12 @@ interface Props {
   onFileClick?: (path: string) => void;
   externalQuote?: string | null;
   onClearQuote?: () => void;
+  sessionId?: string;
 }
 
 const API_URL = 'http://localhost:3001/api';
 
-const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQuote }) => {
+const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQuote, sessionId }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -55,7 +56,9 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
     }
   }, [externalQuote, onClearQuote]);
 
-  const storageKey = `chat_history_${data.owner}_${data.name}`;
+  const storageKey = sessionId 
+    ? `chat_session_${data.owner}_${data.name}_${sessionId}` 
+    : `chat_history_${data.owner}_${data.name}`;
 
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>(() => {
     const saved = localStorage.getItem(storageKey);
@@ -585,17 +588,23 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
                           const isInline = !match && !className?.includes('hljs');
                           const content = String(children).replace(/\n$/, '');
                           
-                          // Simple file path detection: no spaces, has dot extension OR is special file like Dockerfile
-                          const isFilePath = isInline && 
+                          // Improved path detection:
+                          // 1. Matches alphanumeric, dot, slash, underscore, hyphen
+                          // 2. Must not have spaces
+                          // 3. Must check if it looks like a path (contains / or .)
+                          const isPathLike = isInline && 
                                            !content.includes(' ') && 
-                                           /^[a-zA-Z0-9_\-\./\\]+\.[a-zA-Z0-9]+$/.test(content);
+                                           /^[\w\-\./\\]+$/.test(content) &&
+                                           (content.includes('/') || content.includes('\\') || content.includes('.'));
 
-                          if (isFilePath && onFileClick) {
+                          if (isPathLike && onFileClick) {
+                              const isPotentialFile = /\.[a-zA-Z0-9]+$/.test(content);
+                              
                               return (
                                 <code 
                                   className={`bg-primary/20 px-1 py-0.5 rounded text-xs break-all text-primary cursor-pointer hover:underline hover:bg-primary/30 transition-colors`} 
                                   onClick={() => onFileClick(content)}
-                                  title="Open file"
+                                  title={isPotentialFile ? "Open File" : "Open Folder"}
                                   {...props}
                                 >
                                   {children}

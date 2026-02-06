@@ -17,12 +17,13 @@ interface FileItem {
 interface Props {
     data: RepoAnalysis;
     onFileSelect?: (file: FileItem) => void;
+    initialPath?: string;
 }
 
 const API_URL = 'http://localhost:3001/api';
 
-const FileExplorer: React.FC<Props> = ({ data, onFileSelect }) => {
-    const [currentPath, setCurrentPath] = useState('');
+const FileExplorer: React.FC<Props> = ({ data, onFileSelect, initialPath = '' }) => {
+    const [currentPath, setCurrentPath] = useState(initialPath);
     const [files, setFiles] = useState<FileItem[]>([]);
     const [fileContent, setFileContent] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -96,10 +97,16 @@ const FileExplorer: React.FC<Props> = ({ data, onFileSelect }) => {
         }
     };
 
-    // Initial load
+    // Initial load & path updates
     useEffect(() => {
-        fetchDirectory('');
-    }, []);
+        fetchDirectory(currentPath);
+    }, [currentPath]);
+
+    useEffect(() => {
+        if (initialPath && initialPath !== currentPath) {
+             setCurrentPath(initialPath);
+        }
+    }, [initialPath]);
 
     const handleNavigate = (item: FileItem) => {
         if (item.type === 'dir') {

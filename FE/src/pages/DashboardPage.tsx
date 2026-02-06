@@ -1,100 +1,31 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
 import { 
-  Layout, GitBranch, Shield, Zap, Book, 
-  ChevronLeft, ChevronRight, Home, MessageSquare, FileText,
-  PanelLeftClose, PanelLeft, FolderOpen
+  Layout, Shield, Zap, Book
 } from 'lucide-react';
-import type { RepoAnalysis, AIInsight } from '../types';
+import { useNavigate } from 'react-router-dom';
 import ScoreBreakdown from '../components/ScoreBreakdown';
 import ReadmeViewer from '../components/ReadmeViewer';
 import InsightsPanel from '../components/InsightsPanel';
-import ChatPanel from '../components/ChatPanel';
-import FileExplorer from '../components/FileExplorer';
-import FileViewer from '../components/FileViewer'; // Added FileViewer import
-
-type SidebarTab = 'readme' | 'chat' | 'explore';
+import { useRepo } from '../contexts/RepoContext';
 
 const DashboardPage: React.FC = () => {
-  const [data, setData] = useState<RepoAnalysis | null>(null);
-  const [activeTab, setActiveTab] = useState<SidebarTab>('readme');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activityBarExpanded, setActivityBarExpanded] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(400);
-  const [isResizing, setIsResizing] = useState(false);
-  const sidebarRef = useRef<HTMLDivElement>(null);
+  const { data, setData, loading } = useRepo();
   const navigate = useNavigate();
-  const [selectedFile, setSelectedFile] = useState<string | null>(null); // Added selectedFile state
-  const [quotedCode, setQuotedCode] = useState<string | null>(null); // State for quoted code
-
-  // Minimum and maximum width for sidebar
-  const MIN_SIDEBAR_WIDTH = 300;
-  const MAX_SIDEBAR_WIDTH = 700;
 
   useEffect(() => {
-    const stored = localStorage.getItem('repo_analysis');
-    if (!stored) {
-      navigate('/');
-      return;
+    if (!loading && !data) {
+        navigate('/');
     }
-    try {
-      setData(JSON.parse(stored));
-    } catch (e) {
-      navigate('/');
-    }
-  }, [navigate]);
+  }, [loading, data, navigate]);
 
-  // Handler untuk update insights dari AI
-  const handleInsightsUpdate = (newInsights: AIInsight[]) => {
+  const handleInsightsUpdate = (newInsights: any[]) => {
     if (data) {
       const updatedData = { ...data, insights: newInsights };
       setData(updatedData);
-      localStorage.setItem('repo_analysis', JSON.stringify(updatedData));
     }
   };
 
-  // Mouse handlers for resizing
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-  }, []);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
-    
-    const activityBarWidth = activityBarExpanded ? 180 : 50;
-    const newWidth = e.clientX - activityBarWidth;
-    
-    if (newWidth >= MIN_SIDEBAR_WIDTH && newWidth <= MAX_SIDEBAR_WIDTH) {
-      setSidebarWidth(newWidth);
-    }
-  }, [isResizing, activityBarExpanded]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  // Add/remove event listeners for resize
-  useEffect(() => {
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } else {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [isResizing, handleMouseMove, handleMouseUp]);
-
-  if (!data) return null;
+  if (loading || !data) return null;
 
   const getGrade = (score: number) => {
     if (score >= 90) return { label: 'A', color: 'text-green-400' };
@@ -105,149 +36,14 @@ const DashboardPage: React.FC = () => {
 
   const grade = getGrade(data.overallScore);
 
-  const toggleSidebar = (tab: SidebarTab) => {
-    if (activeTab === tab) {
-      setSidebarOpen(!sidebarOpen);
-    } else {
-      setActiveTab(tab);
-      setSidebarOpen(true);
-    }
-  };
-
-  const menuItems = [
-    { id: 'home' as const, icon: Home, label: 'Home', onClick: () => navigate('/') },
-  ];
-
-  const panelItems = [
-    { id: 'readme' as const, icon: FileText, label: 'README' },
-    { id: 'chat' as const, icon: MessageSquare, label: 'AI Chat' },
-    { id: 'explore' as const, icon: FolderOpen, label: 'Explore' },
-  ];
-
   return (
-    <div className="flex h-screen w-screen overflow-hidden relative dashboard-layout">
-      {/* Activity Bar (Leftmost Navigation) - Expandable */}
-      <div 
-        className={`bg-[#101014] border-r border-white/10 flex flex-col pt-4 z-40 shrink-0 transition-all duration-300 ease-out md:flex-col md:h-full flex-row h-[50px] fixed bottom-0 md:relative md:bottom-auto justify-between md:justify-start ${
-          activityBarExpanded ? 'w-[180px] px-3' : 'w-[50px] items-center px-0'
-        }`}
-      >
-
-        {/* Top Menu Items */}
-        <div className={`flex flex-row md:flex-col gap-1 ${activityBarExpanded ? 'w-full' : ''}`}>
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              className={`flex items-center gap-3 rounded-md text-gray-500 hover:text-white hover:bg-white/5 transition-all cursor-pointer ${
-                activityBarExpanded ? 'w-full px-3 py-2.5 justify-start' : 'w-10 h-10 justify-center mb-2'
-              }`}
-              title={item.label}
-              onClick={item.onClick}
-            >
-              <item.icon size={activityBarExpanded ? 20 : 24} />
-              {activityBarExpanded && <span className="text-sm font-medium">{item.label}</span>}
-            </button>
-          ))}
-        </div>
-        
-        {/* Separator */}
-        {activityBarExpanded && (
-          <div className="hidden md:block w-full h-px bg-white/10 my-3" />
-        )}
-        
-        {/* Panel Items */}
-        <div className={`flex flex-row md:flex-col gap-1 ${activityBarExpanded ? 'w-full' : ''}`}>
-          {activityBarExpanded && (
-            <span className="hidden md:block text-xs text-gray-500 uppercase tracking-wider px-3 mb-2">Panels</span>
-          )}
-          {panelItems.map((item) => {
-            const isActive = activeTab === item.id && sidebarOpen;
-            return (
-              <button
-                key={item.id}
-                className={`flex items-center gap-3 rounded-md transition-all cursor-pointer ${
-                  activityBarExpanded ? 'w-full px-3 py-2.5 justify-start' : 'w-10 h-10 justify-center mb-2'
-                } ${isActive ? 'text-white bg-primary' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
-                title={item.label}
-                onClick={() => toggleSidebar(item.id)}
-              >
-                <item.icon size={activityBarExpanded ? 20 : 24} />
-                {activityBarExpanded && <span className="text-sm font-medium">{item.label}</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Bottom spacer for mobile */}
-        <div className="flex-1 hidden md:block" />
-      </div>
-
-      {/* Sidebar Panel - Resizable */}
-      <div 
-        ref={sidebarRef}
-        className={`relative flex flex-col shrink-0 z-20 bg-bg-card ${sidebarOpen ? 'h-[calc(100%-50px)] absolute md:relative md:h-full border-r border-white/10' : 'w-0 border-r-0'}`}
-        style={sidebarOpen ? { width: `${sidebarWidth}px` } : { width: 0 }}
-      >
-        <div className="flex-1 overflow-hidden relative">
-            {activeTab === 'readme' && <ReadmeViewer content={data.readme} />}
-            {activeTab === 'chat' && (
-              <ChatPanel 
-                key={`${data.owner}-${data.name}`} 
-                data={data} 
-                onFileClick={(path) => setSelectedFile(path)}
-                externalQuote={quotedCode}
-                onClearQuote={() => setQuotedCode(null)}
-              />
-            )}
-            {activeTab === 'explore' && <FileExplorer data={data} onFileSelect={(file) => setSelectedFile(file.path)} />} {/* Updated FileExplorer usage */}
-        </div>
-       
-        {/* Toggle button */}
-        <button 
-          className="absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-6 bg-bg-card border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-primary hover:border-primary cursor-pointer z-30 shadow-md hidden md:flex" 
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          title={sidebarOpen ? "Close Sidebar" : "Open Sidebar"}
-        >
-          {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-        </button>
-
-        {/* Resize handle */}
-        {sidebarOpen && (
-          <div
-            onMouseDown={handleMouseDown}
-            className={`absolute top-0 -right-1 w-2 h-full cursor-col-resize z-40 group hidden md:block ${
-              isResizing ? 'bg-primary/50' : 'hover:bg-primary/30'
-            }`}
-            title="Drag to resize"
-          >
-            {/* Visual indicator line */}
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-12 rounded-full transition-all ${
-              isResizing ? 'bg-primary h-24' : 'bg-white/20 group-hover:bg-primary/60 group-hover:h-16'
-            }`} />
-          </div>
-        )}
-      </div>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_top_right,#131318_0%,#0a0a0c_100%)] p-6 md:p-8 pb-20 md:pb-8">
-        {selectedFile ? (
-          <FileViewer 
-            data={data} 
-            filePath={selectedFile} 
-            onClose={() => setSelectedFile(null)}
-            onQuote={(text) => { 
-              setQuotedCode(`\`\`\`${selectedFile}\n${text}\n\`\`\``); 
-              setActiveTab('chat'); 
-              setSelectedFile(null); 
-            }}
-          />
-        ) : (
-          <>
+    <div className="flex h-full w-full overflow-hidden relative bg-[radial-gradient(circle_at_top_right,#131318_0%,#0a0a0c_100%)]">
+      <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden p-6 md:p-8 pb-20 md:pb-8">
             <header className="flex justify-between items-start mb-8 pb-6 border-b border-white/5 animate-[fadeIn_0.5s_ease-out]">
               <div>
                 <h1 className="text-2xl font-bold mb-1">{data.owner} / <span className="text-primary">{data.name}</span></h1>
                 <div className="flex gap-4 text-gray-400 text-sm">
-                  <span className="flex items-center gap-1"><GitBranch size={14} /> main</span>
+                  <span className="flex items-center gap-1"><Shield size={14} /> main</span>
                   <span className="flex items-center gap-1">Analyzed {new Date(data.timestamp).toLocaleDateString()}</span>
                 </div>
               </div>
@@ -316,9 +112,15 @@ const DashboardPage: React.FC = () => {
                   />
                 </div>
               </div>
+
+               {/* README */}
+               <div className="mt-8">
+                   <h2 className="text-xl font-bold mb-4">README</h2>
+                   <div className="bg-bg-card rounded-xl border border-white/10 overflow-hidden">
+                       <ReadmeViewer content={data.readme} />
+                   </div>
+               </div>
             </div>
-          </>
-        )}
       </main>
     </div>
   );
