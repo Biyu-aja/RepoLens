@@ -29,6 +29,64 @@ interface Props {
 
 const API_URL = 'http://localhost:3001/api';
 
+const MessageContent = React.memo(({ msg, onFileClick }: { msg: Message; onFileClick?: (path: string) => void }) => {
+  return (
+    <>
+      <div className="whitespace-normal break-words min-w-0">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+          components={{
+            h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-2 break-words" {...props} />,
+            h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-2 break-words" {...props} />,
+            h3: ({node, ...props}) => <h3 className="text-md font-bold mb-1 break-words" {...props} />,
+            p: ({node, ...props}) => <p className="mb-2 leading-relaxed break-words" {...props} />,
+            ul: ({node, ...props}) => <ul className="list-disc ml-4 mb-2" {...props} />,
+            ol: ({node, ...props}) => <ol className="list-decimal ml-4 mb-2" {...props} />,
+            li: ({node, ...props}) => <li className="mb-1" {...props} />,
+            a: ({node, ...props}) => <a className={`hover:underline break-all ${msg.role === 'user' ? 'text-white underline decoration-white/50' : 'text-primary'}`} target="_blank" rel="noopener noreferrer" {...props} />,
+            code: ({node, className, children, ...props}: any) => {
+              const match = /language-(\w+)/.exec(className || '');
+              const isInline = !match && !className?.includes('hljs');
+              const content = String(children).replace(/\n$/, '');
+              
+              const isPathLike = isInline && 
+                               !content.includes(' ') && 
+                               /^[\w\-\./\\]+$/.test(content) &&
+                               (content.includes('/') || content.includes('\\') || content.includes('.'));
+
+              if (isPathLike && onFileClick) {
+                  const isPotentialFile = /\.[a-zA-Z0-9]+$/.test(content);
+                  
+                  return (
+                    <code 
+                      className={`bg-primary/20 px-1 py-0.5 rounded text-xs break-all text-primary cursor-pointer hover:underline hover:bg-primary/30 transition-colors`} 
+                      onClick={() => onFileClick(content)}
+                      title={isPotentialFile ? "Open File" : "Open Folder"}
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  );
+              }
+
+              return isInline ? 
+                <code className={`bg-black/20 px-1 py-0.5 rounded text-xs break-all ${msg.role === 'user' ? 'text-white' : 'text-primary'}`} {...props}>{children}</code> :
+                <code className={`${className} block bg-black/30 p-2 rounded-md text-sm my-2 text-wrap`} {...props}>{children}</code>
+            },
+            pre: ({node, ...props}) => <pre className="my-2 p-0 bg-transparent rounded-lg overflow-x-auto max-w-full" {...props} />,
+          }}
+        >
+          {msg.content}
+        </ReactMarkdown>
+      </div>
+      <span className="block text-[10px] mt-1 opacity-60 text-right">
+        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </span>
+    </>
+  );
+});
+
 const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQuote, sessionId }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,6 +94,7 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
   const [editContent, setEditContent] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<{ message: Message; text?: string } | null>(null);
+  const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string; messageId: string } | null>(null);
 
   
   const textareaRef = useRef<HTMLTextAreaElement>(null); // Added textareaRef
@@ -133,6 +192,68 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Handle Text Selection
+  useEffect(() => {
+    const handleMouseUp = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+        // We don't verify clearing here to allow clicking the button
+        return;
+      }
+
+      const anchorNode = selection.anchorNode;
+      if (!anchorNode) return;
+
+      const element = anchorNode instanceof Element ? anchorNode : anchorNode.parentElement;
+      const messageBubble = element?.closest('[data-message-id]');
+      
+      if (!messageBubble) {
+        setSelectionMenu(null);
+        return;
+      }
+
+      const messageId = messageBubble.getAttribute('data-message-id');
+      if (!messageId) return;
+
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+
+      if (rect.width > 0) {
+        setSelectionMenu({
+            x: rect.left + (rect.width / 2),
+            y: rect.top - 40, // Position above
+            text: selection.toString(),
+            messageId
+        });
+      }
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+        const target = e.target as Element;
+        if (target.closest('.selection-menu-trigger')) return;
+        setSelectionMenu(null);
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mousedown', handleMouseDown);
+
+    return () => {
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('mousedown', handleMouseDown);
+    };
+  }, []);
+
+  const handleQuoteReply = () => {
+    if (!selectionMenu) return;
+    const msg = messages.find(m => m.id === selectionMenu.messageId);
+    if (msg) {
+        setReplyingTo({ message: msg, text: selectionMenu.text });
+        setSelectionMenu(null);
+        const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
+        if (inputEl) inputEl.focus();
+    }
+  };
 
   const sendMessageToAI = async (userMessage: string, currentHistory: ChatHistory[], onChunk: (chunk: string) => void): Promise<string> => {
     console.log('[Chat] Sending message to AI...', { length: userMessage.length, historySize: currentHistory.length });
@@ -452,7 +573,10 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
 
 
       {/* Messages */}
-      <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 custom-scrollbar">
+      <div 
+        className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 custom-scrollbar" 
+        onScroll={() => setSelectionMenu(null)}
+      >
         {messages.map((msg, index) => (
           <div key={msg.id} className={`group flex gap-3 max-w-[90%] ${msg.role === 'user' ? 'self-end flex-row-reverse' : 'self-start'}`}>
             {/* Avatar */}
@@ -569,63 +693,7 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
                   </div>
                 </div>
               ) : (
-                <>
-                  <div className="whitespace-normal break-words min-w-0">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeHighlight]}
-                      components={{
-                        h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-2 break-words" {...props} />,
-                        h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-2 break-words" {...props} />,
-                        h3: ({node, ...props}) => <h3 className="text-md font-bold mb-1 break-words" {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 leading-relaxed break-words" {...props} />,
-                        ul: ({node, ...props}) => <ul className="list-disc ml-4 mb-2" {...props} />,
-                        ol: ({node, ...props}) => <ol className="list-decimal ml-4 mb-2" {...props} />,
-                        li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                        a: ({node, ...props}) => <a className={`hover:underline break-all ${msg.role === 'user' ? 'text-white underline decoration-white/50' : 'text-primary'}`} target="_blank" rel="noopener noreferrer" {...props} />,
-                        code: ({node, className, children, ...props}: any) => {
-                          const match = /language-(\w+)/.exec(className || '');
-                          const isInline = !match && !className?.includes('hljs');
-                          const content = String(children).replace(/\n$/, '');
-                          
-                          // Improved path detection:
-                          // 1. Matches alphanumeric, dot, slash, underscore, hyphen
-                          // 2. Must not have spaces
-                          // 3. Must check if it looks like a path (contains / or .)
-                          const isPathLike = isInline && 
-                                           !content.includes(' ') && 
-                                           /^[\w\-\./\\]+$/.test(content) &&
-                                           (content.includes('/') || content.includes('\\') || content.includes('.'));
-
-                          if (isPathLike && onFileClick) {
-                              const isPotentialFile = /\.[a-zA-Z0-9]+$/.test(content);
-                              
-                              return (
-                                <code 
-                                  className={`bg-primary/20 px-1 py-0.5 rounded text-xs break-all text-primary cursor-pointer hover:underline hover:bg-primary/30 transition-colors`} 
-                                  onClick={() => onFileClick(content)}
-                                  title={isPotentialFile ? "Open File" : "Open Folder"}
-                                  {...props}
-                                >
-                                  {children}
-                                </code>
-                              );
-                          }
-
-                          return isInline ? 
-                            <code className={`bg-black/20 px-1 py-0.5 rounded text-xs break-all ${msg.role === 'user' ? 'text-white' : 'text-primary'}`} {...props}>{children}</code> :
-                            <code className={`${className} block bg-black/30 p-2 rounded-md text-sm my-2 text-wrap`} {...props}>{children}</code>
-                        },
-                        pre: ({node, ...props}) => <pre className="my-2 p-0 bg-transparent rounded-lg overflow-x-auto max-w-full" {...props} />,
-                      }}
-                    >
-                      {msg.content}
-                    </ReactMarkdown>
-                  </div>
-                  <span className="block text-[10px] mt-1 opacity-60 text-right">
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </>
+                <MessageContent msg={msg} onFileClick={onFileClick} />
               )}
             </div>
           </div>
@@ -696,6 +764,21 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
           <Send size={16} />
         </button>
       </form>
+
+      {/* Floating Selection Menu */}
+      {selectionMenu && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleQuoteReply();
+          }}
+          className="selection-menu-trigger fixed z-50 transform -translate-x-1/2 px-3 py-1.5 bg-[#1E1E24] border border-white/10 text-white text-xs font-medium rounded-full shadow-xl flex items-center gap-2 hover:bg-primary hover:border-primary transition-all animate-in fade-in zoom-in-95 duration-200"
+          style={{ left: selectionMenu.x, top: selectionMenu.y }}
+        >
+          <Quote size={12} />
+          Reply
+        </button>
+      )}
     </div>
   );
 };

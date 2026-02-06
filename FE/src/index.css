@@ -9,6 +9,10 @@
   body {
     @apply bg-bg-main text-white font-sans antialiased;
   }
+
+  ::selection {
+    @apply bg-primary/50 text-white;
+  }
 }
 
 @layer utilities {
