@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRepo } from '../contexts/RepoContext';
 import ChatPanel from '../components/ChatPanel';
-import { Plus, MessageSquare, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, ChevronLeft, ChevronRight, Pencil, Check, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface ChatSession {
@@ -18,6 +18,10 @@ const ChatPage: React.FC = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
+  // Edit State
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+
   // State from navigation (e.g. Quoted Code)
   const [externalQuote, setExternalQuote] = useState<string | null>(null);
 
@@ -95,6 +99,44 @@ const ChatPage: React.FC = () => {
     }
   };
 
+  // Edit Handlers
+  const startEdit = (e: React.MouseEvent, session: ChatSession) => {
+    e.stopPropagation();
+    setEditingSessionId(session.id);
+    setEditTitle(session.title);
+  };
+
+  const cancelEdit = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingSessionId(null);
+    setEditTitle('');
+  };
+
+  const saveEdit = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!data || !editingSessionId || !editTitle.trim()) return;
+
+    const newSessions = sessions.map(s => 
+      s.id === editingSessionId ? { ...s, title: editTitle.trim() } : s
+    );
+    setSessions(newSessions);
+
+    // Save
+    const key = `chat_sessions_${data.owner}_${data.name}`;
+    localStorage.setItem(key, JSON.stringify(newSessions));
+
+    setEditingSessionId(null);
+    setEditTitle('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      cancelEdit();
+    }
+  };
+
   if (loading || !data) return null;
 
   return (
@@ -125,26 +167,76 @@ const ChatPage: React.FC = () => {
             {sessions.map(session => (
                 <div
                     key={session.id}
-                    onClick={() => setCurrentSessionId(session.id)}
+                    onClick={() => {
+                        if (editingSessionId !== session.id) {
+                            setCurrentSessionId(session.id);
+                        }
+                    }}
                     className={`group flex items-center gap-3 px-3 py-3 rounded-md cursor-pointer transition-colors ${
                         currentSessionId === session.id 
                             ? 'bg-white/10 text-white' 
                             : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                 >
-                    <MessageSquare size={16} className={currentSessionId === session.id ? 'text-primary' : ''} />
+                    <MessageSquare size={16} className={`shrink-0 ${currentSessionId === session.id ? 'text-primary' : ''}`} />
+                    
                     <div className="flex-1 min-w-0">
-                         <div className="text-sm truncate font-medium">{session.title}</div>
-                         <div className="text-[10px] text-gray-500">{new Date(session.timestamp).toLocaleDateString()}</div>
+                        {editingSessionId === session.id ? (
+                            <input 
+                                type="text" 
+                                value={editTitle} 
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full bg-black/40 text-xs px-2 py-1 rounded border border-primary/50 text-white outline-none focus:border-primary"
+                                autoFocus
+                            />
+                        ) : (
+                            <>
+                                <div className="text-sm truncate font-medium" title={session.title}>{session.title}</div>
+                                <div className="text-[10px] text-gray-500">{new Date(session.timestamp).toLocaleDateString()}</div>
+                            </>
+                        )}
                     </div>
-                    {/* Delete button (visible on hover) */}
-                    <button
-                        onClick={(e) => deleteSession(e, session.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-500 hover:text-red-400 transition-opacity"
-                        title="Delete Chat"
-                    >
-                        <Trash2 size={14} />
-                    </button>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center gap-1">
+                        {editingSessionId === session.id ? (
+                            <>
+                                <button
+                                    onClick={saveEdit}
+                                    className="p-1 text-success hover:bg-success/10 rounded"
+                                    title="Save"
+                                >
+                                    <Check size={14} />
+                                </button>
+                                <button
+                                    onClick={cancelEdit}
+                                    className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded"
+                                    title="Cancel"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </>
+                        ) : (
+                            <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={(e) => startEdit(e, session)}
+                                    className="p-1 text-gray-500 hover:text-primary transition-colors"
+                                    title="Edit Title"
+                                >
+                                    <Pencil size={14} />
+                                </button>
+                                <button
+                                    onClick={(e) => deleteSession(e, session.id)}
+                                    className="p-1 text-gray-500 hover:text-red-400 transition-colors"
+                                    title="Delete Chat"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             ))}
         </div>

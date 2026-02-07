@@ -101,7 +101,7 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
   const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string; messageId: string } | null>(null);
 
   
-  const textareaRef = useRef<HTMLTextAreaElement>(null); // Added textareaRef
+
 
   // Handle external quotes (e.g. from File Viewer)
   useEffect(() => {
