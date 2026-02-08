@@ -1,82 +1,18 @@
 import { Router, Request, Response } from 'express';
-import { getRepoDetails, getRepoContent } from '../services/github';
+import { getRepoDetails, getRepoContent, getRepoFileStructure, getContributors, getLanguages } from '../services/github';
+import { evaluateRepository } from '../services/ai';
 
 const router = Router();
-
-// Mock AI Logic (Heuristics)
-// In a real app, this would call OpenAI/Gemini
-const calculateScore = (repo: any, readme: string | null, fileStructure: any[]) => {
-    let score = 70; // Base score
-
-    // 1. Documentation (README presence and length)
-    let docScore = 0;
-    if (readme && readme.length > 500) docScore += 80;
-    else if (readme) docScore += 40;
-
-    // 2. Structure (Check for standard folders)
-    const files = Array.isArray(fileStructure) ? fileStructure.map((f: any) => f.name) : [];
-    const hasSrc = files.includes('src') || files.includes('app') || files.includes('lib');
-    const hasTests = files.includes('test') || files.includes('tests') || files.includes('__tests__');
-    const hasConfig = files.some((f: string) => f.includes('config') || f.endsWith('.json') || f.endsWith('.js') || f.endsWith('.ts'));
-
-    let structScore = 50;
-    if (hasSrc) structScore += 20;
-    if (hasConfig) structScore += 10;
-
-    // 3. Testing
-    let testScore = 20;
-    if (hasTests) testScore += 60;
-    // Simple heuristic: if 'test' word appears in readme
-    if (readme && readme.toLowerCase().includes('npm test')) testScore += 10;
-
-    // 4. Commit Health (using stargazers as proxy for popularity/health in this simple version if stats fail)
-    // Real implementation would check commit frequency
-    let healthScore = Math.min(100, (repo.stargazers_count / 100) * 10 + 50);
-
-    // AI Q&A Generation
-    const insights = [
-        {
-            question: "Is this repository production-ready?",
-            answer: testScore > 50 && docScore > 50
-                ? "Likely yes. It has tests and documentation."
-                : "Proceed with caution. Tests or documentation might be lacking."
-        },
-        {
-            question: "What are the main weaknesses?",
-            answer: !hasTests ? "Lack of visible testing directories." : (readme?.length || 0) < 500 ? "Short documentation." : "No obvious structural weaknesses detected."
-        },
-        {
-            question: "How can the documentation be improved?",
-            answer: (readme?.length || 0) < 1000 ? "Expand the README with 'Getting Started', 'API Reference', and 'Contributing' sections." : "Documentation looks robust."
-        },
-        {
-            question: "What should be prioritized next?",
-            answer: !hasTests ? "Setting up a test suite." : "Automating CI/CD pipelines."
-        }
-    ];
-
-    // Verify types
-    return {
-        overallScore: Math.round((docScore + structScore + testScore + healthScore) / 4),
-        breakdown: {
-            documentation: Math.min(100, docScore),
-            structure: Math.min(100, structScore),
-            commitHealth: Math.min(100, Math.round(healthScore)),
-            testing: Math.min(100, testScore)
-        },
-        insights
-    };
-};
 
 router.post('/analyze-repo', async (req: Request, res: Response) => {
     try {
         const { url } = req.body;
         if (!url) {
             res.status(400).json({ error: 'URL is required' });
-            return; // Explicit return to satisfy TS
+            return;
         }
 
-        // Parse owner/repo
+        // Parse owner/repo from URL
         let owner = '';
         let repo = '';
 
@@ -91,7 +27,7 @@ router.post('/analyze-repo', async (req: Request, res: Response) => {
                 owner = parts[0];
                 repo = parts[1];
             }
-            // Strip .git suffix if present (common when pasting clone URLs)
+            // Strip .git suffix if present
             if (repo && repo.endsWith('.git')) {
                 repo = repo.slice(0, -4);
             }
@@ -105,18 +41,22 @@ router.post('/analyze-repo', async (req: Request, res: Response) => {
             return;
         }
 
+        console.log(`[Analyze] Starting analysis for ${owner}/${repo}...`);
+
         // Fetch data in parallel
-        const [repoData, repoContent] = await Promise.all([
+        const [repoData, repoContent, fileStructure, contributors, languages] = await Promise.all([
             getRepoDetails(owner, repo),
-            getRepoContent(owner, repo, '')
+            getRepoContent(owner, repo, ''),
+            getRepoFileStructure(owner, repo),
+            getContributors(owner, repo),
+            getLanguages(owner, repo)
         ]);
 
-        // Try to find README
+        // Try to find and read README
         let readmeContent = '';
         if (Array.isArray(repoContent)) {
             const readmeFile = repoContent.find((f: any) => f.name.toLowerCase().startsWith('readme'));
             if (readmeFile) {
-                // If specific README file found, fetch its content
                 const fullReadme = await getRepoContent(owner, repo, readmeFile.path);
                 if (fullReadme && !Array.isArray(fullReadme) && 'content' in fullReadme) {
                     readmeContent = Buffer.from(fullReadme.content, 'base64').toString('utf-8');
@@ -124,20 +64,60 @@ router.post('/analyze-repo', async (req: Request, res: Response) => {
             }
         }
 
-        const analysis = calculateScore(repoData, readmeContent, Array.isArray(repoContent) ? repoContent : []);
+        console.log(`[Analyze] Data fetched. README: ${readmeContent.length} chars, Files: ${fileStructure.length}`);
 
+        // Use AI to evaluate the repository
+        console.log('[Analyze] Calling AI for evaluation...');
+        const aiEvaluation = await evaluateRepository({
+            owner,
+            name: repo,
+            description: repoData.description || undefined,
+            readme: readmeContent || '# No README found',
+            fileStructure: fileStructure.map((f: any) => f.path),
+            stars: repoData.stargazers_count,
+            forks: repoData.forks_count,
+            openIssues: repoData.open_issues_count
+        });
+
+        console.log(`[Analyze] AI evaluation complete. Score: ${aiEvaluation.overallScore}`);
+
+        // Build response
         res.json({
             id: `repo_${repoData.id}`,
             url,
             name: repoData.name,
             owner: repoData.owner.login,
+            description: repoData.description,
             timestamp: new Date().toISOString(),
             readme: readmeContent || '# No README found',
-            ...analysis
+            // GitHub stats
+            stats: {
+                stars: repoData.stargazers_count,
+                forks: repoData.forks_count,
+                watchers: repoData.watchers_count,
+                openIssues: repoData.open_issues_count,
+                language: repoData.language,
+                license: repoData.license?.name || null,
+                createdAt: repoData.created_at,
+                updatedAt: repoData.updated_at,
+                pushedAt: repoData.pushed_at
+            },
+            // Contributors data
+            contributors,
+            // Language distribution
+            languages,
+            // AI evaluation results
+            overallScore: aiEvaluation.overallScore,
+            breakdown: aiEvaluation.breakdown,
+            summary: aiEvaluation.summary,
+            techStack: aiEvaluation.techStack,
+            strengths: aiEvaluation.strengths,
+            improvements: aiEvaluation.improvements,
+            insights: aiEvaluation.insights
         });
 
     } catch (error: any) {
-        console.error(error);
+        console.error('[Analyze] Error:', error);
         res.status(500).json({ error: error.message || 'Failed to analyze repository' });
     }
 });

@@ -75,3 +75,60 @@ export const getRepoFileStructure = async (owner: string, repo: string) => {
         return [];
     }
 };
+
+/**
+ * Get top contributors with their contribution stats
+ */
+export const getContributors = async (owner: string, repo: string, limit: number = 10) => {
+    try {
+        const { data } = await octokit.request('GET /repos/{owner}/{repo}/contributors', {
+            owner,
+            repo,
+            per_page: limit
+        });
+
+        // Calculate total contributions for percentage
+        const totalContributions = data.reduce((sum: number, c: any) => sum + c.contributions, 0);
+
+        return data.map((contributor: any) => ({
+            login: contributor.login,
+            avatarUrl: contributor.avatar_url,
+            profileUrl: contributor.html_url,
+            contributions: contributor.contributions,
+            percentage: Math.round((contributor.contributions / totalContributions) * 100)
+        }));
+    } catch (error) {
+        console.error('Error fetching contributors:', error);
+        return [];
+    }
+};
+
+/**
+ * Get language distribution for the repository
+ */
+export const getLanguages = async (owner: string, repo: string) => {
+    try {
+        const { data } = await octokit.request('GET /repos/{owner}/{repo}/languages', {
+            owner,
+            repo
+        });
+
+        // Calculate total bytes and percentages
+        const totalBytes = Object.values(data).reduce((sum: number, bytes: any) => sum + bytes, 0);
+
+        // Convert to array with percentages, sorted by usage
+        const languages = Object.entries(data)
+            .map(([name, bytes]: [string, any]) => ({
+                name,
+                bytes,
+                percentage: Math.round((bytes / totalBytes) * 100)
+            }))
+            .sort((a, b) => b.bytes - a.bytes);
+
+        return languages;
+    } catch (error) {
+        console.error('Error fetching languages:', error);
+        return [];
+    }
+};
+
