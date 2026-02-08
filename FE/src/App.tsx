@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
 import ChatPage from './pages/ChatPage';
 import FilesPage from './pages/FilesPage';
+import SharePage from './pages/SharePage';
 import MainLayout from './components/MainLayout';
 import { RepoProvider } from './contexts/RepoContext';
 
@@ -13,6 +14,7 @@ const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/share/:token" element={<SharePage />} />
           <Route element={<MainLayout />}>
              <Route path="/dashboard" element={<DashboardPage />} />
              <Route path="/chat" element={<ChatPage />} />
@@ -25,3 +27,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

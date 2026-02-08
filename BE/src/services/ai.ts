@@ -21,6 +21,19 @@ interface RepoEvaluationContext {
     languages?: Record<string, number>;
 }
 
+export interface RadarCategory {
+    category: string;
+    score: number;
+    ideal: number;
+    gap: string;  // Reason for the gap
+}
+
+export interface ProductionReadiness {
+    ready: boolean;
+    score: number;
+    reasons: string[];
+}
+
 export interface AIEvaluationResult {
     overallScore: number;
     breakdown: {
@@ -34,6 +47,8 @@ export interface AIEvaluationResult {
     strengths: string[];
     improvements: string[];
     insights: Array<{ question: string; answer: string }>;
+    radarAnalysis: RadarCategory[];
+    productionReadiness: ProductionReadiness;
 }
 
 const getAIConfig = (): AIConfig => {
@@ -88,11 +103,23 @@ Provide your evaluation as a JSON object with this EXACT structure (no markdown,
   "strengths": ["<strength1>", "<strength2>", "<strength3>"],
   "improvements": ["<improvement1>", "<improvement2>", "<improvement3>"],
   "insights": [
-    {"question": "Is this production-ready?", "answer": "<your analysis>"},
     {"question": "What are the main weaknesses?", "answer": "<your analysis>"},
     {"question": "How can documentation be improved?", "answer": "<your analysis>"},
     {"question": "What should be prioritized next?", "answer": "<your analysis>"}
-  ]
+  ],
+  "radarAnalysis": [
+    {"category": "Documentation", "score": <actual 0-100>, "ideal": 90, "gap": "<why score is below ideal, or 'Meets standard' if good>"},
+    {"category": "Code Structure", "score": <actual 0-100>, "ideal": 85, "gap": "<reason>"},
+    {"category": "Testing", "score": <actual 0-100>, "ideal": 80, "gap": "<reason>"},
+    {"category": "DevOps/CI", "score": <actual 0-100>, "ideal": 75, "gap": "<reason>"},
+    {"category": "Security", "score": <actual 0-100>, "ideal": 80, "gap": "<reason>"},
+    {"category": "Maintainability", "score": <actual 0-100>, "ideal": 85, "gap": "<reason>"}
+  ],
+  "productionReadiness": {
+    "ready": <true/false>,
+    "score": <0-100>,
+    "reasons": ["<reason1 why ready or not ready>", "<reason2>", "<reason3>"]
+  }
 }
 
 Scoring Guidelines:
@@ -156,6 +183,35 @@ Be specific, constructive, and base scores on actual evidence from the README an
 const sanitizeResult = (result: any): AIEvaluationResult => {
     const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, Math.round(val) || 0));
 
+    // Default radar analysis if not provided
+    const defaultRadar: RadarCategory[] = [
+        { category: 'Documentation', score: clamp(result.breakdown?.documentation, 0, 100), ideal: 90, gap: 'Not analyzed' },
+        { category: 'Code Structure', score: clamp(result.breakdown?.structure, 0, 100), ideal: 85, gap: 'Not analyzed' },
+        { category: 'Testing', score: clamp(result.breakdown?.testing, 0, 100), ideal: 80, gap: 'Not analyzed' },
+        { category: 'DevOps/CI', score: 50, ideal: 75, gap: 'Not analyzed' },
+        { category: 'Security', score: 50, ideal: 80, gap: 'Not analyzed' },
+        { category: 'Maintainability', score: clamp(result.breakdown?.codeQuality, 0, 100), ideal: 85, gap: 'Not analyzed' }
+    ];
+
+    // Sanitize radar if provided
+    const radarAnalysis = Array.isArray(result.radarAnalysis)
+        ? result.radarAnalysis.map((r: any) => ({
+            category: String(r.category || 'Unknown'),
+            score: clamp(r.score, 0, 100),
+            ideal: clamp(r.ideal, 0, 100),
+            gap: String(r.gap || 'Not analyzed')
+        }))
+        : defaultRadar;
+
+    // Sanitize production readiness
+    const productionReadiness: ProductionReadiness = {
+        ready: Boolean(result.productionReadiness?.ready),
+        score: clamp(result.productionReadiness?.score || result.overallScore, 0, 100),
+        reasons: Array.isArray(result.productionReadiness?.reasons)
+            ? result.productionReadiness.reasons.slice(0, 5).map(String)
+            : ['Analysis pending']
+    };
+
     return {
         overallScore: clamp(result.overallScore, 0, 100),
         breakdown: {
@@ -168,7 +224,9 @@ const sanitizeResult = (result: any): AIEvaluationResult => {
         techStack: Array.isArray(result.techStack) ? result.techStack.slice(0, 10) : [],
         strengths: Array.isArray(result.strengths) ? result.strengths.slice(0, 5) : [],
         improvements: Array.isArray(result.improvements) ? result.improvements.slice(0, 5) : [],
-        insights: Array.isArray(result.insights) ? result.insights.slice(0, 6) : []
+        insights: Array.isArray(result.insights) ? result.insights.slice(0, 6) : [],
+        radarAnalysis,
+        productionReadiness
     };
 };
 
@@ -180,14 +238,21 @@ const getFallbackResult = (context: RepoEvaluationContext): AIEvaluationResult =
     const hasReadme = context.readme.length > 100;
     const hasTests = context.fileStructure.some(f => f.includes('test') || f.includes('spec'));
     const hasSrc = context.fileStructure.some(f => f.includes('src/') || f.includes('lib/'));
+    const hasCI = context.fileStructure.some(f => f.includes('.github/workflows') || f.includes('.circleci') || f.includes('.travis'));
+
+    const docScore = hasReadme ? 70 : 30;
+    const structureScore = hasSrc ? 75 : 50;
+    const testScore = hasTests ? 70 : 20;
+    const ciScore = hasCI ? 70 : 30;
+    const overallScore = 50 + (hasReadme ? 15 : 0) + (hasTests ? 15 : 0) + (hasSrc ? 10 : 0);
 
     return {
-        overallScore: 50 + (hasReadme ? 15 : 0) + (hasTests ? 15 : 0) + (hasSrc ? 10 : 0),
+        overallScore,
         breakdown: {
-            documentation: hasReadme ? 70 : 30,
-            structure: hasSrc ? 75 : 50,
+            documentation: docScore,
+            structure: structureScore,
             codeQuality: 60,
-            testing: hasTests ? 70 : 20
+            testing: testScore
         },
         summary: `A ${context.name} repository by ${context.owner}.`,
         techStack: [],
@@ -195,7 +260,24 @@ const getFallbackResult = (context: RepoEvaluationContext): AIEvaluationResult =
         improvements: hasTests ? [] : ['Add tests'],
         insights: [
             { question: 'Analysis Status', answer: 'AI analysis unavailable. Using basic heuristics.' }
-        ]
+        ],
+        radarAnalysis: [
+            { category: 'Documentation', score: docScore, ideal: 90, gap: hasReadme ? 'Meets basic standard' : 'No README found' },
+            { category: 'Code Structure', score: structureScore, ideal: 85, gap: hasSrc ? 'Has organized structure' : 'Needs better organization' },
+            { category: 'Testing', score: testScore, ideal: 80, gap: hasTests ? 'Has test coverage' : 'No tests found' },
+            { category: 'DevOps/CI', score: ciScore, ideal: 75, gap: hasCI ? 'Has CI configuration' : 'No CI/CD setup found' },
+            { category: 'Security', score: 50, ideal: 80, gap: 'Unable to analyze security' },
+            { category: 'Maintainability', score: 60, ideal: 85, gap: 'Unable to analyze maintainability' }
+        ],
+        productionReadiness: {
+            ready: overallScore >= 70,
+            score: overallScore,
+            reasons: [
+                hasReadme ? '✓ Documentation available' : '✗ Missing documentation',
+                hasTests ? '✓ Tests present' : '✗ No test coverage',
+                hasCI ? '✓ CI/CD configured' : '✗ No CI/CD setup'
+            ]
+        }
     };
 };
 

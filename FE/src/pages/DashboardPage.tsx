@@ -13,6 +13,9 @@ import ReadmeViewer from '../components/ReadmeViewer';
 import InsightsPanel from '../components/InsightsPanel';
 import ContributorsPanel from '../components/ContributorsPanel';
 import LanguageChart from '../components/LanguageChart';
+import RadarAnalysisChart from '../components/RadarAnalysisChart';
+import ProductionReadinessCard from '../components/ProductionReadinessCard';
+import ShareButton from '../components/ShareButton';
 import { useRepo } from '../contexts/RepoContext';
 
 const DashboardPage: React.FC = () => {
@@ -144,6 +147,11 @@ const DashboardPage: React.FC = () => {
                     <ExternalLink size={18} />
                     Open on GitHub
                   </a>
+                  <ShareButton 
+                    repoUrl={data.url} 
+                    owner={data.owner} 
+                    name={data.name} 
+                  />
                 </div>
               </div>
 
@@ -284,6 +292,15 @@ const DashboardPage: React.FC = () => {
 
               <div className="lg:col-span-5">
                 <LanguageChart languages={data.languages || []} />
+              </div>
+
+              {/* Radar Analysis & Production Readiness Row */}
+              <div className="lg:col-span-8">
+                <RadarAnalysisChart radarAnalysis={data.radarAnalysis || []} />
+              </div>
+
+              <div className="lg:col-span-4">
+                <ProductionReadinessCard productionReadiness={data.productionReadiness} />
               </div>
 
               {/* AI Insights - Full Width */}

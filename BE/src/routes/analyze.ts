@@ -113,7 +113,9 @@ router.post('/analyze-repo', async (req: Request, res: Response) => {
             techStack: aiEvaluation.techStack,
             strengths: aiEvaluation.strengths,
             improvements: aiEvaluation.improvements,
-            insights: aiEvaluation.insights
+            insights: aiEvaluation.insights,
+            radarAnalysis: aiEvaluation.radarAnalysis,
+            productionReadiness: aiEvaluation.productionReadiness
         });
 
     } catch (error: any) {

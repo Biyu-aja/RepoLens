@@ -5,6 +5,7 @@ interface RepoContextType {
   data: RepoAnalysis | null;
   setData: (data: RepoAnalysis | null) => void;
   loading: boolean;
+  setLoading: (loading: boolean) => void;
 }
 
 const RepoContext = createContext<RepoContextType | undefined>(undefined);
@@ -40,7 +41,7 @@ export const RepoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <RepoContext.Provider value={{ data, setData: updateData, loading }}>
+    <RepoContext.Provider value={{ data, setData: updateData, loading, setLoading }}>
       {children}
     </RepoContext.Provider>
   );

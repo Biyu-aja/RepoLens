@@ -36,6 +36,19 @@ export interface LanguageInfo {
   percentage: number;
 }
 
+export interface RadarCategory {
+  category: string;
+  score: number;
+  ideal: number;
+  gap: string;
+}
+
+export interface ProductionReadiness {
+  ready: boolean;
+  score: number;
+  reasons: string[];
+}
+
 export interface RepoAnalysis {
   id: string;
   url: string;
@@ -58,4 +71,8 @@ export interface RepoAnalysis {
   strengths: string[];
   improvements: string[];
   insights: AIInsight[];
+  // Radar analysis
+  radarAnalysis: RadarCategory[];
+  // Production readiness
+  productionReadiness: ProductionReadiness;
 }

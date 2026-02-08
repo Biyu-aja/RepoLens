@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Github, Loader2, ArrowRight, Clock, Trash2, ExternalLink } from 'lucide-react';
 import { analyzeRepository } from '../services/analyzer';
+import { useRepo } from '../contexts/RepoContext';
 import type { RepoAnalysis } from '../types';
 
 const HISTORY_KEY = 'repo_analysis_history';
@@ -12,6 +13,7 @@ const LandingPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<RepoAnalysis[]>([]);
   const navigate = useNavigate();
+  const { setData } = useRepo();
 
   // Load history on mount
   useEffect(() => {
@@ -41,9 +43,10 @@ const LandingPage: React.FC = () => {
     setLoading(true);
     try {
       const data = await analyzeRepository(url);
-      // Save to history and set as current
+      // Save to history
       saveToHistory(data);
-      localStorage.setItem('repo_analysis', JSON.stringify(data));
+      // Update context (this also saves to localStorage)
+      setData(data);
       navigate('/dashboard');
     } catch (error) {
       console.error(error);
@@ -54,7 +57,8 @@ const LandingPage: React.FC = () => {
   };
 
   const handleOpenHistory = (item: RepoAnalysis) => {
-    localStorage.setItem('repo_analysis', JSON.stringify(item));
+    // Update context (this also saves to localStorage)
+    setData(item);
     navigate('/dashboard');
   };
 
