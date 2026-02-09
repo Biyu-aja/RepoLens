@@ -25,6 +25,9 @@ interface Props {
   externalQuote?: string | null;
   onClearQuote?: () => void;
   sessionId?: string;
+  onFirstMessage?: (message: string) => string | undefined; // Receives message, returns new session ID
+  initialMessage?: string | null; // Message to send immediately on mount
+  onClearInitialMessage?: () => void;
 }
 
 const API_URL = 'http://localhost:3001/api';
@@ -87,7 +90,7 @@ const MessageContent = React.memo(({ msg, onFileClick }: { msg: Message; onFileC
   );
 });
 
-const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQuote, sessionId }) => {
+const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQuote, sessionId, onFirstMessage, initialMessage, onClearInitialMessage }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -99,6 +102,9 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
     | null
   >(null);
   const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string; messageId: string } | null>(null);
+  
+  // Ref to track if initial message has been processed (prevent double execution)
+  const initialMessageProcessedRef = useRef(false);
 
   
 
@@ -178,6 +184,31 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
     scrollToBottom();
   }, [messages]);
 
+  // Handle initial message (from pending message after session creation)
+  useEffect(() => {
+    // Prevent double execution (e.g., from React StrictMode or race conditions)
+    if (initialMessage && sessionId && !initialMessageProcessedRef.current) {
+      initialMessageProcessedRef.current = true;
+      
+      // Create user message
+      const userMsg: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: initialMessage,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMsg]);
+      
+      // Clear the initial message in parent
+      if (onClearInitialMessage) {
+        onClearInitialMessage();
+      }
+      
+      // Process the message
+      processMessage(initialMessage, chatHistory);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMessage, sessionId]);
 
 
   // Close menu when clicking outside
@@ -395,6 +426,14 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
+
+    // If no session exists and we have the callback, create new session first
+    if (!sessionId && onFirstMessage) {
+      onFirstMessage(input.trim());
+      // The parent will re-render with new sessionId, so we return here
+      // The message will be passed back via initialMessage prop
+      return;
+    }
 
     let finalMessage = input.trim();
     

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Share2, Copy, Check, X, Link2 } from 'lucide-react';
+import { useRepo } from '../contexts/RepoContext';
 
 interface Props {
   repoUrl: string;
@@ -15,6 +16,7 @@ const ShareButton: React.FC<Props> = ({ repoUrl, owner, name }) => {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { data } = useRepo();
 
   const generateShareLink = async () => {
     setLoading(true);
@@ -24,14 +26,19 @@ const ShareButton: React.FC<Props> = ({ repoUrl, owner, name }) => {
       const response = await fetch(`${API_URL}/api/share/encode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repoUrl, owner, name })
+        body: JSON.stringify({ 
+          repoUrl, 
+          owner, 
+          name,
+          notes: data?.notes // Include notes in payload
+        })
       });
 
       if (!response.ok) throw new Error('Failed to generate link');
 
-      const data = await response.json();
+      const dataRes = await response.json();
       // Build full share URL
-      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+      const fullUrl = `${window.location.origin}${dataRes.shareUrl}`;
       setShareUrl(fullUrl);
       setIsOpen(true);
     } catch (err: any) {
@@ -90,6 +97,11 @@ const ShareButton: React.FC<Props> = ({ repoUrl, owner, name }) => {
             <div className="p-5">
               <p className="text-sm text-gray-400 mb-4">
                 Share this link with others to let them view the analysis for <span className="text-white font-medium">{owner}/{name}</span>
+                {data?.notes && data.notes.length > 0 && (
+                  <span className="mt-1 text-emerald-400 text-xs flex items-center gap-1">
+                    <Check size={12} /> Includes {data.notes.length} note{data.notes.length > 1 ? 's' : ''}
+                  </span>
+                )}
               </p>
 
               {error ? (

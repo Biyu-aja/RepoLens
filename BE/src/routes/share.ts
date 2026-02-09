@@ -8,7 +8,7 @@ const router = Router();
  */
 router.post('/encode', (req: Request, res: Response) => {
     try {
-        const { repoUrl, owner, name } = req.body;
+        const { repoUrl, owner, name, notes } = req.body;
 
         if (!repoUrl || !owner || !name) {
             res.status(400).json({ error: 'repoUrl, owner, and name are required' });
@@ -16,12 +16,22 @@ router.post('/encode', (req: Request, res: Response) => {
         }
 
         // Create a simple payload with essential info
-        const payload = {
+        const payload: any = {
             u: repoUrl,    // url
             o: owner,      // owner
             n: name,       // name
             t: Date.now()  // timestamp
         };
+
+        // Add notes if provided (condensed format)
+        if (notes && Array.isArray(notes)) {
+            payload.nts = notes.map((n: any) => ({
+                id: n.id,
+                t: n.title,
+                c: n.content,
+                d: n.updatedAt
+            }));
+        }
 
         // Encode to base64 URL-safe string
         const token = Buffer.from(JSON.stringify(payload))
@@ -65,11 +75,20 @@ router.get('/decode/:token', (req: Request, res: Response) => {
         const decoded = Buffer.from(base64, 'base64').toString('utf-8');
         const payload = JSON.parse(decoded);
 
+        // Expand notes
+        const notes = payload.nts ? payload.nts.map((n: any) => ({
+            id: n.id,
+            title: n.t,
+            content: n.c,
+            updatedAt: n.d
+        })) : [];
+
         res.json({
             repoUrl: payload.u,
             owner: payload.o,
             name: payload.n,
-            createdAt: new Date(payload.t).toISOString()
+            createdAt: new Date(payload.t).toISOString(),
+            notes: notes
         });
 
     } catch (error: any) {

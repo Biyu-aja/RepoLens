@@ -1,12 +1,12 @@
+import dotenv from 'dotenv';
+dotenv.config(); // Load env FIRST before other imports
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import analyzeRoutes from './routes/analyze';
 import chatRoutes from './routes/chat';
 import filesRoutes from './routes/files';
 import shareRoutes from './routes/share';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

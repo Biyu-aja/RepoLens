@@ -1,3 +1,10 @@
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  updatedAt: string;
+}
+
 export interface ScoreBreakdown {
   documentation: number;
   structure: number;
@@ -75,4 +82,6 @@ export interface RepoAnalysis {
   radarAnalysis: RadarCategory[];
   // Production readiness
   productionReadiness: ProductionReadiness;
+  // Notes associated with the analysis (optional, for sharing/restore)
+  notes?: Note[];
 }

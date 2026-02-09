@@ -16,12 +16,22 @@ import LanguageChart from '../components/LanguageChart';
 import RadarAnalysisChart from '../components/RadarAnalysisChart';
 import ProductionReadinessCard from '../components/ProductionReadinessCard';
 import ShareButton from '../components/ShareButton';
+import NotesWidget from '../components/NotesWidget';
 import { useRepo } from '../contexts/RepoContext';
 
 const DashboardPage: React.FC = () => {
-  const { data, setData, loading } = useRepo();
+  const { data, setData, loading, setLoading } = useRepo();
   const navigate = useNavigate();
   const [copied, setCopied] = React.useState(false);
+  const [reanalyzing, setReanalyzing] = React.useState(false);
+
+  // Detect if data is from old format (missing new fields)
+  const isOutdatedData = data && (
+    !data.radarAnalysis || 
+    !data.productionReadiness || 
+    !data.contributors || 
+    !data.languages
+  );
 
   useEffect(() => {
     if (!loading && !data) {
@@ -44,6 +54,32 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleReanalyze = async () => {
+    if (!data?.url) return;
+    
+    setReanalyzing(true);
+    setLoading(true);
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/analyze-repo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: data.url })
+      });
+      
+      if (!response.ok) throw new Error('Failed to re-analyze');
+      
+      const newData = await response.json();
+      setData(newData);
+    } catch (error) {
+      console.error('Re-analyze failed:', error);
+      alert('Failed to re-analyze repository');
+    } finally {
+      setReanalyzing(false);
+      setLoading(false);
+    }
+  };
+
   if (loading || !data) return null;
 
   // Format relative time
@@ -61,12 +97,39 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="flex h-full w-full overflow-hidden relative">
+      {/* Outdated Data Banner */}
+      {isOutdatedData && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-amber-500/90 to-orange-500/90 text-white px-4 py-3 flex items-center justify-center gap-4 shadow-lg backdrop-blur-sm">
+          <AlertCircle size={20} />
+          <span className="text-sm font-medium">
+            This analysis is from an older version. Some features may be missing.
+          </span>
+          <button
+            onClick={handleReanalyze}
+            disabled={reanalyzing}
+            className="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            {reanalyzing ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Re-analyzing...
+              </>
+            ) : (
+              <>
+                <TrendingUp size={16} />
+                Re-analyze Now
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Background gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,#1a1a2e_0%,transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,#0f172a_0%,transparent_50%)]" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-indigo-500/10 to-transparent blur-3xl pointer-events-none" />
       
-      <main className="relative flex-1 flex flex-col overflow-y-auto overflow-x-hidden custom-scrollbar bg-[#0a0a0c]/80 backdrop-blur-sm">
+      <main className={`relative flex-1 flex flex-col overflow-y-auto overflow-x-hidden custom-scrollbar bg-[#0a0a0c]/80 backdrop-blur-sm ${isOutdatedData ? 'pt-12' : ''}`}>
         {/* Hero Section */}
         <header className="relative px-8 pt-8 pb-6">
           <div className="max-w-7xl mx-auto">
@@ -327,6 +390,7 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
         </section>
+        <NotesWidget />
       </main>
     </div>
   );

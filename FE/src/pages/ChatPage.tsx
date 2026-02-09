@@ -24,6 +24,9 @@ const ChatPage: React.FC = () => {
 
   // State from navigation (e.g. Quoted Code)
   const [externalQuote, setExternalQuote] = useState<string | null>(null);
+  
+  // Pending message when creating a new session from chat input
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (location.state?.quotedCode) {
@@ -61,8 +64,40 @@ const ChatPage: React.FC = () => {
     }
   }, [data, currentSessionId]);
 
+  // Helper to check if a session is empty (only welcome message or no messages)
+  const isSessionEmpty = (sessionId: string): boolean => {
+    if (!data) return true;
+    const sessionKey = `chat_session_${data.owner}_${data.name}_${sessionId}`;
+    const stored = localStorage.getItem(sessionKey);
+    if (!stored) return true;
+    
+    try {
+      const parsed = JSON.parse(stored);
+      // Empty if no messages or only welcome message
+      if (!parsed.messages || parsed.messages.length === 0) return true;
+      if (parsed.messages.length === 1 && parsed.messages[0].id === 'welcome') return true;
+      return false;
+    } catch {
+      return true;
+    }
+  };
+
   const createNewSession = () => {
     if (!data) return;
+    
+    // If current session is empty, just stay on it (no need to create new)
+    if (currentSessionId && isSessionEmpty(currentSessionId)) {
+      // Optionally scroll to top or show a message
+      return;
+    }
+    
+    // Check if there's any existing empty session, use that instead
+    const emptySession = sessions.find(s => isSessionEmpty(s.id));
+    if (emptySession) {
+      setCurrentSessionId(emptySession.id);
+      return;
+    }
+    
     const newId = Date.now().toString();
     const newSession: ChatSession = {
       id: newId,
@@ -77,6 +112,29 @@ const ChatPage: React.FC = () => {
     // Save
     const key = `chat_sessions_${data.owner}_${data.name}`;
     localStorage.setItem(key, JSON.stringify(newSessions));
+  };
+
+  // Called when user sends first message without an active session
+  const handleFirstMessage = (message: string): string | undefined => {
+    if (!data) return undefined;
+    
+    const newId = Date.now().toString();
+    const newSession: ChatSession = {
+      id: newId,
+      title: `Chat ${new Date().toLocaleTimeString()}`,
+      timestamp: new Date().toISOString()
+    };
+
+    const newSessions = [newSession, ...sessions];
+    setSessions(newSessions);
+    setCurrentSessionId(newId);
+    setPendingMessage(message); // Store the message to be sent after re-mount
+    
+    // Save session list
+    const key = `chat_sessions_${data.owner}_${data.name}`;
+    localStorage.setItem(key, JSON.stringify(newSessions));
+    
+    return newId;
   };
 
   const deleteSession = (e: React.MouseEvent, id: string) => {
@@ -193,7 +251,14 @@ const ChatPage: React.FC = () => {
                             />
                         ) : (
                             <>
-                                <div className="text-sm truncate font-medium" title={session.title}>{session.title}</div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm truncate font-medium" title={session.title}>{session.title}</span>
+                                    {isSessionEmpty(session.id) && (
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">
+                                            New
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="text-[10px] text-gray-500">{new Date(session.timestamp).toLocaleDateString()}</div>
                             </>
                         )}
@@ -262,6 +327,9 @@ const ChatPage: React.FC = () => {
             sessionId={currentSessionId || undefined} 
             externalQuote={externalQuote}
             onClearQuote={() => setExternalQuote(null)}
+            onFirstMessage={handleFirstMessage}
+            initialMessage={pendingMessage}
+            onClearInitialMessage={() => setPendingMessage(null)}
             onFileClick={(path) => {
                // Simple heuristic: if it has an extension, it's a file. Else folder.
                const hasExtension = /\.[a-zA-Z0-9]+$/.test(path);

@@ -30,7 +30,7 @@ const SharePage: React.FC = () => {
         const decodeRes = await fetch(`${API_URL}/api/share/decode/${token}`);
         if (!decodeRes.ok) throw new Error('Invalid or expired share link');
 
-        const { repoUrl, owner, name } = await decodeRes.json();
+        const { repoUrl, owner, name, notes } = await decodeRes.json();
         setRepoInfo({ owner, name });
 
         // Step 2: Analyze the repository
@@ -47,7 +47,8 @@ const SharePage: React.FC = () => {
         if (!analyzeRes.ok) throw new Error('Failed to analyze repository');
 
         const analysisData = await analyzeRes.json();
-        setData(analysisData);
+        // Merge shared notes with fresh analysis data
+        setData({ ...analysisData, notes: notes || [] });
         setGlobalLoading(false);
 
         // Step 3: Navigate to dashboard
