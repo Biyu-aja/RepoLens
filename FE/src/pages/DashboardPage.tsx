@@ -390,8 +390,9 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
         </section>
-        <NotesWidget />
+
       </main>
+      <NotesWidget />
     </div>
   );
 };

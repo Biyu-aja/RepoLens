@@ -107,10 +107,10 @@ const NotesWidget: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-4">
       {/* Widget Window */}
       {isOpen && (
-        <div className="mb-4 w-80 md:w-96 h-[500px] bg-[#16161a] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-200">
+        <div className="w-80 md:w-96 h-[500px] bg-[#16161a] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-200">
           
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
