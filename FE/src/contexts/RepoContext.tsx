@@ -35,6 +35,23 @@ export const RepoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setData(newData);
     if (newData) {
       localStorage.setItem('repo_analysis', JSON.stringify(newData));
+      
+      // Also sync to history to persist changes (like notes)
+      try {
+        const historyRaw = localStorage.getItem('repo_analysis_history');
+        if (historyRaw) {
+          const history = JSON.parse(historyRaw);
+          if (Array.isArray(history)) {
+             const index = history.findIndex((h: RepoAnalysis) => h.id === newData.id);
+             if (index !== -1) {
+               history[index] = newData;
+               localStorage.setItem('repo_analysis_history', JSON.stringify(history));
+             }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to sync changes to history', e);
+      }
     } else {
       localStorage.removeItem('repo_analysis');
     }

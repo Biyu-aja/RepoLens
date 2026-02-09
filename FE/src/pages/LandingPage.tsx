@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Github, Loader2, ArrowRight, Clock, Trash2, ExternalLink } from 'lucide-react';
+import { Search, Github, Loader2, ArrowRight, Clock, Trash2, ExternalLink, Upload } from 'lucide-react';
 import { analyzeRepository } from '../services/analyzer';
 import { useRepo } from '../contexts/RepoContext';
 import type { RepoAnalysis } from '../types';
@@ -69,6 +69,57 @@ const LandingPage: React.FC = () => {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory));
   };
 
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (json.version && json.data) {
+          const repoData = json.data;
+          
+          // 1. Restore Repo Data
+          setData(repoData);
+          
+          // 2. Restore Chat History (if available)
+          if (json.chats && Array.isArray(json.chats)) {
+            const { owner, name } = repoData;
+            
+            // Restore sessions list
+            const sessionsList = json.chats.map(({ data, ...session }: any) => session);
+            localStorage.setItem(`chat_sessions_${owner}_${name}`, JSON.stringify(sessionsList));
+            
+            // Restore individual session content
+            json.chats.forEach((chat: any) => {
+               if (chat.data && chat.id) {
+                 localStorage.setItem(`chat_session_${owner}_${name}_${chat.id}`, JSON.stringify(chat.data));
+               }
+            });
+            // console.log(`Restored ${json.chats.length} chat sessions`);
+            alert(`Analysis imported successfully!\nRestored ${json.chats.length} chat sessions.`);
+          } else {
+            alert('Analysis imported successfully!');
+          }
+
+          // 3. Save to History
+          if (repoData.id && repoData.owner) {
+             saveToHistory(repoData);
+          }
+          
+          navigate('/dashboard');
+        } else {
+          alert('Invalid RepoLens analysis file');
+        }
+      } catch (err) {
+        console.error('Import failed:', err);
+        alert('Failed to parse analysis file');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const getGradeColor = (score: number) => {
     if (score >= 90) return 'text-green-400';
     if (score >= 80) return 'text-blue-400';
@@ -125,7 +176,22 @@ const LandingPage: React.FC = () => {
               )}
             </button>
           </div>
+          
         </form>
+        
+        {/* Import File Option - moved outside form to avoid stacking issues */}
+        <div className="mt-4 text-center relative z-10">
+            <label className="text-sm text-gray-400 hover:text-primary cursor-pointer transition-colors flex items-center justify-center gap-2 py-2">
+              <Upload size={14} />
+              <span>Or upload analysis file</span>
+              <input 
+              type="file" 
+              accept=".json" 
+              className="hidden" 
+              onChange={handleImport}
+            />
+            </label>
+        </div>
 
         <div className="mt-12 flex gap-8 justify-center text-sm text-gray-500">
           <div className="flex items-center gap-2">

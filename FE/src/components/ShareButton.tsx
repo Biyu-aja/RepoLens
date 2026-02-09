@@ -58,6 +58,53 @@ const ShareButton: React.FC<Props> = ({ repoUrl, owner, name }) => {
     }
   };
 
+  const handleExport = () => {
+    if (!data) return;
+
+    // 1. Get Chat Sessions
+    // Use data.owner/name if available to match ChatPage logic (source of truth)
+    const storeOwner = data.owner || owner;
+    const storeName = data.name || name;
+    
+    const sessionsKey = `chat_sessions_${storeOwner}_${storeName}`;
+    const sessionsRaw = localStorage.getItem(sessionsKey);
+    let chats: any[] = [];
+
+    if (sessionsRaw) {
+      try {
+        const sessions = JSON.parse(sessionsRaw);
+        // 2. Get content for each session
+        chats = sessions.map((session: any) => {
+          const contentKey = `chat_session_${storeOwner}_${storeName}_${session.id}`;
+          const contentRaw = localStorage.getItem(contentKey);
+          return {
+            ...session,
+            data: contentRaw ? JSON.parse(contentRaw) : null
+          };
+        });
+      } catch (e) {
+        console.error('Failed to export chats', e);
+      }
+    }
+
+    const exportData = {
+      version: '1.1', // Bump version
+      exportedAt: new Date().toISOString(),
+      data: data,
+      chats: chats // Include chats
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `repolens-${owner}-${name}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       {/* Share Button */}
@@ -97,11 +144,16 @@ const ShareButton: React.FC<Props> = ({ repoUrl, owner, name }) => {
             <div className="p-5">
               <p className="text-sm text-gray-400 mb-4">
                 Share this link with others to let them view the analysis for <span className="text-white font-medium">{owner}/{name}</span>
-                {data?.notes && data.notes.length > 0 && (
-                  <span className="mt-1 text-emerald-400 text-xs flex items-center gap-1">
-                    <Check size={12} /> Includes {data.notes.length} note{data.notes.length > 1 ? 's' : ''}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {data?.notes && data.notes.length > 0 && (
+                    <span className="text-emerald-400 text-xs flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded">
+                      <Check size={12} /> {data.notes.length} note{data.notes.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  <span className="text-blue-400 text-xs flex items-center gap-1 bg-blue-500/10 px-2 py-1 rounded">
+                    <Check size={12} /> Chat History
                   </span>
-                )}
+                </div>
               </p>
 
               {error ? (
@@ -111,7 +163,7 @@ const ShareButton: React.FC<Props> = ({ repoUrl, owner, name }) => {
               ) : (
                 <>
                   {/* URL Input */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mb-4">
                     <input
                       type="text"
                       readOnly
@@ -132,10 +184,28 @@ const ShareButton: React.FC<Props> = ({ repoUrl, owner, name }) => {
 
                   {/* Copy Status */}
                   {copied && (
-                    <p className="text-xs text-emerald-400 mt-2 text-center">
+                    <p className="text-xs text-emerald-400 mt-2 text-center mb-4">
                       Link copied to clipboard!
                     </p>
                   )}
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/10" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-[#16161a] px-2 text-gray-500">Or export as file</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleExport}
+                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 hover:text-white transition-all"
+                  >
+                    <Share2 size={16} className="rotate-180" /> 
+                    {/* Using Share2 rotated as a download-like symbol since I didn't import Download yet, better to stick to imported icons or standard ones. Wait, I should import Download. */}
+                    <span>Download Analysis JSON</span>
+                  </button>
                 </>
               )}
             </div>
@@ -143,7 +213,7 @@ const ShareButton: React.FC<Props> = ({ repoUrl, owner, name }) => {
             {/* Footer */}
             <div className="px-5 py-4 border-t border-white/5 bg-white/[0.02]">
               <p className="text-xs text-gray-500 text-center">
-                Anyone with this link can view this repository analysis
+                Anyone with this link or file can view this repository analysis
               </p>
             </div>
           </div>
