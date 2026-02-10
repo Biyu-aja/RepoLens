@@ -41,39 +41,40 @@ const CommitHistoryChart: React.FC<Props> = ({ data, year, month }) => {
       dataMap.set(d, item.count);
   });
 
-  const seriesData: { x: number; y: number }[] = [];
+  const categories: string[] = [];
+  const dayCounts: number[] = [];
   
   // Iterate from start to end date
   const current = new Date(startDate);
   while (current <= endDate) {
       const dateStr = current.toISOString().split('T')[0];
-      seriesData.push({
-          x: current.getTime(),
-          y: dataMap.get(dateStr) || 0
-      });
+      const dayLabel = String(current.getDate()).padStart(2, '0'); // "01", "02"
+      
+      categories.push(dayLabel);
+      dayCounts.push(dataMap.get(dateStr) || 0);
+      
       current.setDate(current.getDate() + 1);
   }
-  
-  const filteredData = seriesData;
 
   const options: ApexOptions = {
     chart: {
-      type: 'line', // Changed from area to line
+      type: 'line',
       height: 350,
       toolbar: { show: false },
       background: 'transparent',
       fontFamily: 'inherit',
       animations: { enabled: true }
     },
-    colors: ['#6366f1'], // Indigo 500
+    colors: ['#6366f1'], 
     stroke: {
-      width: 4 // Thicker line
+      curve: 'smooth',
+      width: 4
     },
     xaxis: {
-      type: 'datetime',
+      type: 'category', // Changed to category for strict alignment
+      categories: categories,
       labels: {
         style: { colors: '#9ca3af', fontSize: '12px' },
-        format: 'dd' // Only day number e.g. 01, 02
       },
       tooltip: { enabled: false },
       axisBorder: { show: false },
@@ -88,23 +89,22 @@ const CommitHistoryChart: React.FC<Props> = ({ data, year, month }) => {
     theme: { mode: 'dark' },
     grid: {
       borderColor: '#1f2937', 
-      strokeDashArray: 2, // Dotted grid lines like reference
-      xaxis: { lines: { show: true } }, // Show vertical grid lines too
+      strokeDashArray: 2,
+      xaxis: { lines: { show: true } }, 
       yaxis: { lines: { show: true } },
-      padding: { top: 0, right: 20, bottom: 0, left: 20 }
+      padding: { top: 0, right: 20, bottom: 0, left: 10 }
     },
     tooltip: {
       theme: 'dark',
-      x: { format: 'dd MMM yyyy' },
       y: {
         formatter: (val: number) => `${val} contributions`
       },
-      marker: { show: false } // Custom tooltip style usually better without default marker
+      marker: { show: false }
     },
     markers: {
-        size: 6, // Visible dots
-        colors: ['#1e1e2e'], // Dark center
-        strokeColors: '#6366f1', // Indigo border
+        size: 6,
+        colors: ['#1e1e2e'],
+        strokeColors: '#6366f1', 
         strokeWidth: 3,
         hover: { size: 8, sizeOffset: 3 }
     },
@@ -113,7 +113,7 @@ const CommitHistoryChart: React.FC<Props> = ({ data, year, month }) => {
 
   const series = [{
     name: 'Contributions',
-    data: filteredData.length > 0 ? filteredData : seriesData.slice(-30) // Fallback to last 30 points if filter empty
+    data: dayCounts
   }];
 
   return (
