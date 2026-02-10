@@ -50,6 +50,40 @@ export const getCommitActivity = async (owner: string, repo: string) => {
     }
 }
 
+export const getRecentCommits = async (owner: string, repo: string, since?: string, until?: string) => {
+    try {
+        const params: any = {
+            owner,
+            repo,
+            per_page: 100
+        };
+
+        if (since) params.since = since;
+        if (until) params.until = until;
+
+        const { data } = await octokit.request('GET /repos/{owner}/{repo}/commits', params);
+
+        // Group by Date (YYYY-MM-DD)
+        const commitsByDate = new Map<string, number>();
+
+        data.forEach((item: any) => {
+            const date = item.commit.author?.date?.split('T')[0];
+            if (date) {
+                commitsByDate.set(date, (commitsByDate.get(date) || 0) + 1);
+            }
+        });
+
+        // Convert to array objects
+        return Array.from(commitsByDate.entries()).map(([date, count]) => ({
+            date,
+            count
+        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    } catch (error) {
+        console.error('Error fetching recent commits:', error);
+        return [];
+    }
+};
+
 export const getRepoFileStructure = async (owner: string, repo: string) => {
     try {
         // 1. Get default branch
@@ -132,6 +166,41 @@ export const getLanguages = async (owner: string, repo: string) => {
         return languages;
     } catch (error) {
         console.error('Error fetching languages:', error);
+        return [];
+    }
+};
+
+/**
+ * Get punch card data (hourly commit counts per day)
+ * Returns array of [day (0-6), hour (0-23), count]
+ */
+export const getPunchCard = async (owner: string, repo: string) => {
+    try {
+        const { data } = await octokit.request('GET /repos/{owner}/{repo}/stats/punch_card', {
+            owner,
+            repo
+        });
+        return data; // Array of [day, hour, count]
+    } catch (error) {
+        console.error('Error fetching punch card:', error);
+        return [];
+    }
+};
+
+/**
+ * Get commit activity for the last year
+ */
+export const getWeeklyCommitActivity = async (owner: string, repo: string) => {
+    try {
+        const { data } = await octokit.request('GET /repos/{owner}/{repo}/stats/code_frequency', {
+            owner,
+            repo
+        });
+        // Returns weekly additions and deletions
+        // Format: [timestamp, additions, deletions]
+        return data;
+    } catch (error) {
+        console.error('Error fetching code frequency:', error);
         return [];
     }
 };

@@ -8,6 +8,7 @@ import FilesPage from './pages/FilesPage';
 import SharePage from './pages/SharePage';
 import MainLayout from './components/MainLayout';
 import { RepoProvider } from './contexts/RepoContext';
+import ActivityPage from './pages/ActivityPage';
 
 const App: React.FC = () => {
   return (
@@ -21,6 +22,7 @@ const App: React.FC = () => {
              <Route path="/dashboard" element={<DashboardPage />} />
              <Route path="/chat" element={<ChatPage />} />
              <Route path="/files" element={<FilesPage />} />
+             <Route path="/activity" element={<ActivityPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

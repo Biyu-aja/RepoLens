@@ -7,6 +7,7 @@ import analyzeRoutes from './routes/analyze';
 import chatRoutes from './routes/chat';
 import filesRoutes from './routes/files';
 import shareRoutes from './routes/share';
+import activityRoutes from './routes/activity';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -18,6 +19,7 @@ app.use(express.json({ limit: '10mb' })); // Increased limit for repo context
 app.use('/api', analyzeRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', filesRoutes);
+app.use('/api', activityRoutes);
 app.use('/api/share', shareRoutes);
 
 app.get('/', (req, res) => {

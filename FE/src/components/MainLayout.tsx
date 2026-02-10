@@ -5,7 +5,8 @@ import {
   LayoutDashboard, 
   MessageSquare, 
   LogOut,
-  Folder
+  Folder,
+  Activity
 } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
@@ -31,6 +32,12 @@ const MainLayout: React.FC = () => {
       icon: Folder, 
       label: 'Files', 
       path: '/files'
+    },
+    { 
+      id: 'activity', 
+      icon: Activity, 
+      label: 'Pulse', 
+      path: '/activity'
     }
   ];
 
