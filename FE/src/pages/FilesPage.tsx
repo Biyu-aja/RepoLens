@@ -4,7 +4,7 @@ import FileExplorer from '../components/FileExplorer';
 import FileViewer from '../components/FileViewer';
 import ChatPanel from '../components/ChatPanel';
 import { useRepo } from '../contexts/RepoContext';
-import { X, Menu, MessageSquare, Plus, Trash2, ChevronRight, ArrowLeft, Sparkles, Pencil, Check } from 'lucide-react';
+import { X, Menu, MessageSquare, Plus, Trash2, ChevronRight, ArrowLeft, Sparkles, Pencil, Check, FolderOpen } from 'lucide-react';
 
 interface ChatSession {
   id: string;
@@ -68,6 +68,14 @@ const FilesPage: React.FC = () => {
     useEffect(() => {
         if (location.state?.filePath) {
             setSelectedFile(location.state.filePath);
+            // Open explorer at parent folder
+            const parts = location.state.filePath.split('/');
+            parts.pop(); // Remove filename
+            if (parts.length > 0) {
+                 setInitialPath(parts.join('/'));
+            } else {
+                 setInitialPath('');
+            }
         }
         if (location.state?.folderPath) {
             setInitialPath(location.state.folderPath);
@@ -203,6 +211,7 @@ const FilesPage: React.FC = () => {
                         data={data} 
                         onFileSelect={(file) => setSelectedFile(file.path)}
                         initialPath={initialPath}
+                        selectedPath={selectedFile}
                     />
                 </div>
             </div>
@@ -231,7 +240,7 @@ const FilesPage: React.FC = () => {
             {/* MAIN CONTENT (File Viewer) */}
             <div className="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">
                  {/* Top Bar for View Controls? Maybe not needed */}
-                {selectedFile ? (
+                {selectedFile && /\.[a-zA-Z0-9]+$/.test(selectedFile) ? (
                     <FileViewer 
                         data={data} 
                         filePath={selectedFile} 
@@ -241,14 +250,20 @@ const FilesPage: React.FC = () => {
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-500">
                         <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                            <Menu size={32} />
+                            {selectedFile ? <FolderOpen size={32} /> : <Menu size={32} />}
                         </div>
-                        <p>Select a file to view content</p>
+                        {selectedFile ? (
+                           <div className="text-center">
+                                <p className="text-lg font-medium text-gray-300">{selectedFile}</p>
+                                <p className="text-sm opacity-60 mt-1">Folder selected. Expand in explorer to view files.</p>
+                           </div>
+                        ) : (
+                           <p>Select a file to view content</p>
+                        )}
                     </div>
                 )}
             </div>
 
-            {/* RIGHT SIDEBAR (Chat) */}
             {/* RIGHT SIDEBAR (Chat) */}
              <div 
                 className={`flex flex-col border-l border-white/10 bg-bg-card absolute right-0 top-0 bottom-0 z-40 shadow-2xl ${

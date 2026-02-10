@@ -563,47 +563,37 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
     setInput(prompt);
   };
 
-  const handleRegenerate = async (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    
-    // Debugging logs
-    console.log('Regenerate clicked');
-    if (loading) {
-      console.log('Regenerate blocked: Loading is true');
-      return;
-    }
+  const handleRegenerate = async (id: string) => {
+    if (loading) return;
 
-    const lastMsgIndex = messages.length - 1;
-    const lastMsg = messages[lastMsgIndex];
-    console.log('Last message:', lastMsg);
+    const index = messages.findIndex(m => m.id === id);
+    if (index === -1) return;
 
-    if (!lastMsg || lastMsg.role !== 'ai') {
-      console.log('Regenerate cancelled: Last message is not AI or missing');
-      return;
-    }
+    // Verify it is an AI message
+    const targetMsg = messages[index];
+    if (targetMsg.role !== 'ai') return;
     
-    const lastUserMsgIndex = messages.length - 2;
-    const lastUserMsg = messages[lastUserMsgIndex];
-    console.log('Last user message:', lastUserMsg);
-    
-    // Safety check: must have a preceding user message
-    if (!lastUserMsg || lastUserMsg.role !== 'user') {
+    // Verify preceding user message
+    const promptMsg = messages[index - 1];
+    if (!promptMsg || promptMsg.role !== 'user') {
       console.log('Regenerate cancelled: Preceding message is not User');
       return;
     }
 
-    // Remove the last AI message
-    const newMessages = messages.slice(0, -1);
+    // Keep messages BEFORE this AI message
+    const newMessages = messages.slice(0, index);
     setMessages(newMessages);
 
-    // Revert history
-    const newHistory = chatHistory.slice(0, -2); 
+    // Rebuild history from remaining messages
+    const newHistory: ChatHistory[] = newMessages
+       .filter(m => !m.isError && m.id !== 'welcome')
+       .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
+    
     setChatHistory(newHistory);
     setActiveMenuId(null);
 
-    console.log('Processing regeneration for content:', lastUserMsg.content.substring(0, 50));
-    // Process again with the same user message content
-    await processMessage(lastUserMsg.content, newHistory);
+    console.log('Regenerating response for:', promptMsg.content.substring(0, 50));
+    await processMessage(promptMsg.content, newHistory);
   };
 
   return (
@@ -666,7 +656,9 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
 
                   {/* Dropdown Menu */}
                   {activeMenuId === msg.id && (
-                    <div className="message-menu-dropdown absolute top-6 right-0 z-50 py-1 min-w-[140px] bg-[#1E1E24] border border-white/10 rounded-lg shadow-xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                    <div className={`message-menu-dropdown absolute right-0 z-50 py-1 min-w-[140px] bg-[#1E1E24] border border-white/10 rounded-lg shadow-xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden ${
+                      index >= messages.length - 1 ? 'bottom-full mb-2 origin-bottom-right' : 'top-6 origin-top-right'
+                    }`}>
                        <button
                         onClick={() => handleReply(msg)}
                         className="w-full px-3 py-2 text-left text-xs text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
@@ -683,10 +675,10 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
                         Copy
                       </button>
 
-                      {/* Regenerate Option (Only for last AI message) */}
-                      {msg.role === 'ai' && index === messages.length - 1 && (
+                      {/* Regenerate Option (For ANY AI message) */}
+                      {msg.role === 'ai' && (
                         <button
-                          onClick={handleRegenerate}
+                          onClick={() => handleRegenerate(msg.id)}
                           className="w-full px-3 py-2 text-left text-xs text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
                         >
                           <RefreshCw size={12} />

@@ -17,6 +17,7 @@ import RadarAnalysisChart from '../components/RadarAnalysisChart';
 import ProductionReadinessCard from '../components/ProductionReadinessCard';
 import ShareButton from '../components/ShareButton';
 import NotesWidget from '../components/NotesWidget';
+import RepoMap from '../components/RepoMap';
 import { useRepo } from '../contexts/RepoContext';
 
 const DashboardPage: React.FC = () => {
@@ -346,6 +347,11 @@ const DashboardPage: React.FC = () => {
                     )}
                   </ul>
                 </div>
+              </div>
+
+              {/* Repo Architecture Map */}
+              <div className="lg:col-span-12 h-[600px]">
+                <RepoMap data={data} />
               </div>
 
               {/* Contributors & Languages Row */}

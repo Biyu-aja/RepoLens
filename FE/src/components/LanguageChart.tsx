@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { Code2 } from 'lucide-react';
 import type { LanguageInfo } from '../types';
 
@@ -90,8 +90,7 @@ const LanguageChart: React.FC<Props> = ({ languages }) => {
       <div className="flex items-center gap-6">
         {/* Donut Chart */}
         <div className="w-28 h-28 shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            <PieChart width={112} height={112}>
               <Pie
                 data={chartData}
                 cx="50%"
@@ -111,7 +110,6 @@ const LanguageChart: React.FC<Props> = ({ languages }) => {
               </Pie>
               <Tooltip content={<CustomTooltip />} />
             </PieChart>
-          </ResponsiveContainer>
         </div>
 
         {/* Legend */}

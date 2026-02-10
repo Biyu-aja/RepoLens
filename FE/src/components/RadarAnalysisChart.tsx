@@ -99,8 +99,8 @@ const RadarAnalysisChart: React.FC<Props> = ({ radarAnalysis }) => {
 
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Chart */}
-        <div className="flex-1 h-[280px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="flex-1 h-[280px] w-full min-w-0">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <RechartsRadarChart cx="50%" cy="50%" outerRadius="70%" data={radarAnalysis}>
               <PolarGrid stroke="rgba(255,255,255,0.1)" />
               <PolarAngleAxis 

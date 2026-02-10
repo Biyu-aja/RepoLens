@@ -29,9 +29,12 @@ export const getRepoContent = async (owner: string, repo: string, path: string =
             path,
         });
         return data;
-    } catch (error) {
-        // If not found, return null instead of throwing, to handle missing READMEs gracefully
-        return null;
+    } catch (error: any) {
+        if (error.status === 404) {
+            return null;
+        }
+        console.error(`Error in getRepoContent for ${path}:`, error);
+        throw error;
     }
 };
 
@@ -68,6 +71,7 @@ export const getRepoFileStructure = async (owner: string, repo: string) => {
         return treeData.tree.map((item: any) => ({
             path: item.path,
             type: item.type, // 'blob' or 'tree'
+            size: item.size,
             url: item.url
         }));
     } catch (error) {

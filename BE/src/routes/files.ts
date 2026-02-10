@@ -12,7 +12,14 @@ router.post('/files/content', async (req: Request, res: Response) => {
             return;
         }
 
-        let content = await getRepoContent(owner, repo, path || '');
+        let content;
+        try {
+            content = await getRepoContent(owner, repo, path || '');
+        } catch (err: any) {
+            // If it's 404, we might try fuzzy search below. If it's other error, throw.
+            if (err.status !== 404) throw err;
+            content = null;
+        }
 
         if (!content && path && !path.includes('/')) {
             console.log(`[BE] File '${path}' not found at root, searching recursively...`);
@@ -22,7 +29,12 @@ router.post('/files/content', async (req: Request, res: Response) => {
 
             if (match) {
                 console.log(`[BE] Found match: ${match.path}`);
-                content = await getRepoContent(owner, repo, match.path);
+                try {
+                    content = await getRepoContent(owner, repo, match.path);
+                } catch (err: any) {
+                    if (err.status !== 404) throw err;
+                    content = null;
+                }
             }
         }
 
@@ -43,6 +55,23 @@ router.post('/files/content', async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Error fetching file content:', error);
         res.status(500).json({ error: error.message || 'Failed to fetch content' });
+    }
+});
+
+router.post('/files/structure', async (req: Request, res: Response) => {
+    try {
+        const { owner, repo } = req.body;
+
+        if (!owner || !repo) {
+            res.status(400).json({ error: 'Owner and repo are required' });
+            return;
+        }
+
+        const structure = await getRepoFileStructure(owner, repo);
+        res.json(structure);
+    } catch (error: any) {
+        console.error('Error fetching file structure:', error);
+        res.status(500).json({ error: error.message || 'Failed to fetch structure' });
     }
 });
 
