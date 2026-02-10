@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Github, Loader2, ArrowRight, Clock, Trash2, ExternalLink, Upload } from 'lucide-react';
+import { Search, Github, Loader2, ArrowRight, Clock, Trash2, ExternalLink, Upload, Info } from 'lucide-react';
 import { analyzeRepository } from '../services/analyzer';
 import { useRepo } from '../contexts/RepoContext';
 import type { RepoAnalysis } from '../types';
@@ -148,6 +148,16 @@ const LandingPage: React.FC = () => {
         <p className="text-xl text-gray-400 mb-10 leading-relaxed">
           Instantly analyze GitHub repositories for code quality, structure, and production readiness.
         </p>
+
+        <div className="flex justify-center mb-10">
+          <button
+            onClick={() => navigate('/learn-more')}
+            className="px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-all flex items-center gap-2 backdrop-blur-md group"
+          >
+            <Info size={16} className="text-primary group-hover:scale-110 transition-transform" />
+            <span>Learn how it works</span>
+          </button>
+        </div>
 
         <form onSubmit={handleAnalyze} className="w-full max-w-md mx-auto relative group">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg blur opacity-30 group-hover:opacity-60 transition duration-1000"></div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
+import LearnMorePage from './pages/LearnMorePage';
 import DashboardPage from './pages/DashboardPage';
 import ChatPage from './pages/ChatPage';
 import FilesPage from './pages/FilesPage';
@@ -14,6 +15,7 @@ const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/learn-more" element={<LearnMorePage />} />
           <Route path="/share/:token" element={<SharePage />} />
           <Route element={<MainLayout />}>
              <Route path="/dashboard" element={<DashboardPage />} />
