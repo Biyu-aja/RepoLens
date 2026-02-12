@@ -79,6 +79,49 @@ const FileContent = React.memo(({ content, filePath, fileUrl }: { content: strin
         return 'plaintext';
     };
 
+    const isMarkdown = filePath.toLowerCase().endsWith('.md');
+
+    if (isMarkdown) {
+        return (
+            <div className="p-4 md:p-8 max-w-5xl mx-auto">
+                <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeHighlight]}
+                    components={{
+                         h1: ({node, ...props}) => <h1 className="text-2xl md:text-3xl font-semibold border-b border-white/10 pb-2 mb-6 mt-2 text-white" {...props} />,
+                         h2: ({node, ...props}) => <h2 className="text-xl md:text-2xl font-semibold border-b border-white/10 pb-2 mb-4 mt-8 text-white" {...props} />,
+                         h3: ({node, ...props}) => <h3 className="text-lg md:text-xl font-semibold mb-3 mt-6 text-white" {...props} />,
+                         h4: ({node, ...props}) => <h4 className="text-base font-semibold mb-2 mt-4 text-white" {...props} />,
+                         p: ({node, ...props}) => <p className="leading-7 mb-4 text-gray-300" {...props} />,
+                         ul: ({node, ...props}) => <ul className="list-disc list-outside ml-6 mb-4 text-gray-300 space-y-1" {...props} />,
+                         ol: ({node, ...props}) => <ol className="list-decimal list-outside ml-6 mb-4 text-gray-300 space-y-1" {...props} />,
+                         li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                         a: ({node, ...props}) => <a target="_blank" rel="noopener noreferrer" className="text-[#58a6ff] hover:underline cursor-pointer" {...props} />,
+                         blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-white/20 pl-4 py-1 my-4 text-gray-400 bg-white/5 rounded-r" {...props} />,
+                         code: ({node, className, children, ...props}: any) => {
+                             // Check if it's an inline code block (no language class usually, or passed as inline prop if we weren't using rehype-highlight)
+                             // However, with standard remark/rehype, block code follows 'pre > code' structure
+                             const isInline = !className && !String(children).includes('\n');
+                             return isInline ? (
+                                <code className="bg-white/15 rounded-md px-1.5 py-0.5 text-[0.85em] font-mono text-gray-200" {...props}>{children}</code>
+                             ) : (
+                                <code className={`${className} font-mono text-sm`} {...props}>{children}</code>
+                             )
+                         },
+                         pre: ({node, ...props}) => <pre className="bg-[#161b22] border border-white/10 rounded-lg p-4 overflow-x-auto mb-4" {...props} />,
+                         img: ({node, ...props}) => <img className="max-w-full rounded-lg bg-white border border-white/10 my-4" {...props} />,
+                         table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full border-collapse border border-white/10" {...props} /></div>,
+                         th: ({node, ...props}) => <th className="border border-white/10 px-4 py-2 bg-white/5 font-bold text-left text-gray-200" {...props} />,
+                         td: ({node, ...props}) => <td className="border border-white/10 px-4 py-2 text-gray-300" {...props} />,
+                         hr: ({node, ...props}) => <hr className="border-white/10 my-8" {...props} />,
+                    }}
+                >
+                    {content || ''}
+                </ReactMarkdown>
+            </div>
+        );
+    }
+
     return (
         <ReactMarkdown
             remarkPlugins={[remarkGfm]}

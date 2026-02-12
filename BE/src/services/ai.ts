@@ -254,6 +254,8 @@ Be specific, constructive, and base scores on actual evidence from the README an
 
         if (!response.ok) {
             const errorText = await response.text();
+            const fs = require('fs');
+            fs.appendFileSync('error.log', `[AI] API Error ${response.status}: ${errorText}\n`);
             console.error('[AI] Evaluation API Error:', response.status, errorText);
             throw new Error(`AI API error: ${response.status}`);
         }
@@ -275,7 +277,10 @@ Be specific, constructive, and base scores on actual evidence from the README an
         // Validate and sanitize the result
         return sanitizeResult(result);
 
-    } catch (error) {
+    } catch (error: any) {
+        const fs = require('fs');
+        const errorMessage = `[AI] Evaluation failed: ${error instanceof Error ? error.message : String(error)}\n${error instanceof Error ? error.stack : ''}\n`;
+        try { fs.appendFileSync('error.log', errorMessage); } catch (e) { console.error('Failed to write log', e); }
         console.error('[AI] Evaluation failed:', error);
         return getFallbackResult(context);
     }

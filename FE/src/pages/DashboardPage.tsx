@@ -3,7 +3,7 @@ import {
   Star, GitFork, Eye, AlertCircle, Code2, 
   CheckCircle, ArrowRight, MessageSquare, FolderOpen,
   Clock, Github, ExternalLink, Copy, Check,
-  TrendingUp, Zap, Scale, Terminal
+  TrendingUp, Zap, Scale, Terminal, RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ScoreRing from '../components/ScoreRing';
@@ -21,7 +21,7 @@ import RepoMap from '../components/RepoMap';
 import { useRepo } from '../contexts/RepoContext';
 
 const DashboardPage: React.FC = () => {
-  const { data, setData, loading, setLoading } = useRepo();
+  const { data, setData, loading } = useRepo();
   const navigate = useNavigate();
   const [copied, setCopied] = React.useState(false);
   const [reanalyzing, setReanalyzing] = React.useState(false);
@@ -31,7 +31,9 @@ const DashboardPage: React.FC = () => {
     !data.radarAnalysis || 
     !data.productionReadiness || 
     !data.contributors || 
-    !data.languages
+    !data.languages ||
+    !data.techStack || 
+    data.techStack.length === 0
   );
 
   useEffect(() => {
@@ -59,7 +61,6 @@ const DashboardPage: React.FC = () => {
     if (!data?.url) return;
     
     setReanalyzing(true);
-    setLoading(true);
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       const response = await fetch(`${API_URL}/api/analyze-repo`, {
@@ -77,7 +78,6 @@ const DashboardPage: React.FC = () => {
       alert('Failed to re-analyze repository');
     } finally {
       setReanalyzing(false);
-      setLoading(false);
     }
   };
 
@@ -122,6 +122,25 @@ const DashboardPage: React.FC = () => {
               </>
             )}
           </button>
+        </div>
+      )}
+
+      {/* Reanalyzing Overlay */}
+      {reanalyzing && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0a0a0c]/80 backdrop-blur-md transition-all duration-300">
+          <div className="flex flex-col items-center gap-6 p-8 rounded-3xl border border-white/10 bg-[#0a0a0c]/50 shadow-2xl">
+            <div className="relative">
+              <div className="absolute inset-0 bg-indigo-500 blur-2xl opacity-20 animate-pulse" />
+              <div className="relative w-20 h-20 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <RefreshCw size={24} className="text-indigo-400 animate-pulse" />
+              </div>
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-white font-medium text-xl animate-pulse">Re-analyzing Repository...</h3>
+              <p className="text-gray-400 text-sm max-w-xs">Gathering latest insights, metrics, and AI evaluation</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -216,6 +235,19 @@ const DashboardPage: React.FC = () => {
                     owner={data.owner} 
                     name={data.name} 
                   />
+                  
+                  <button 
+                    onClick={handleReanalyze}
+                    disabled={reanalyzing}
+                    className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium transition-all border border-white/10 hover:border-white/20 disabled:opacity-50 cursor-pointer"
+                  >
+                    {reanalyzing ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <RefreshCw size={18} />
+                    )}
+                    Re-analyze
+                  </button>
                 </div>
               </div>
 

@@ -18,7 +18,7 @@ const FilesPage: React.FC = () => {
     
     // Layout State
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
-    const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+    const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
     const [chatWidth, setChatWidth] = useState(400); // Default width
     const [isResizing, setIsResizing] = useState(false);
 
