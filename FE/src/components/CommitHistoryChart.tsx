@@ -118,9 +118,6 @@ const CommitHistoryChart: React.FC<Props> = ({ data, year, month }) => {
 
   return (
     <div className="w-full bg-[#0d1117] p-6 rounded-xl border border-white/5">
-       <div className="mb-4 text-center">
-        <h3 className="text-sm font-medium text-indigo-400">Contribution Activity (Last 30 Days)</h3>
-       </div>
        <div id="chart-timeline">
             <Chart 
                 options={options} 

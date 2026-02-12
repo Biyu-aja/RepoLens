@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRepo } from '../contexts/RepoContext';
-import { Activity, Clock, Calendar, TrendingUp } from 'lucide-react';
+import { Activity, Clock, Calendar, TrendingUp, Moon, Flame } from 'lucide-react';
 import PunchCardGraph from '../components/PunchCardGraph';
 import CommitHistoryChart from '../components/CommitHistoryChart';
 
@@ -9,6 +9,13 @@ interface ActivityData {
   punchCard: number[][]; // [day, hour, count]
   codeFrequency: number[][]; // [timestamp, additions, deletions]
   timeline: { date: string; count: number }[];
+  topHustlers: {
+    name: string;
+    avatar: string;
+    lateNightCommits: number;
+    totalCommits: number;
+    latestLateCommit: string;
+  }[];
 }
 
 const ActivityPage: React.FC = () => {
@@ -168,7 +175,7 @@ const ActivityPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                             <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
-                            Timeline History (Tanggal)
+                            Commit Timeline
                          </h2>
                          
                          <div className="flex items-center gap-2 bg-[#161b22] px-2 py-1 rounded-lg border border-white/5">
@@ -216,10 +223,10 @@ const ActivityPage: React.FC = () => {
                          <div>
                              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                                 <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
-                                Working Habits (Pola Jam Kerja)
+                                Working Habits
                              </h2>
                              <p className="text-xs text-gray-500 mt-1 ml-3.5">
-                                Agregasi/gabungan semua aktivitas berdasarkan hari dan jam.
+                                Aggregated activity across all days and hours.
                              </p>
                          </div>
                     </div>
@@ -231,6 +238,114 @@ const ActivityPage: React.FC = () => {
                     ) : (
                         <div className="p-8 text-center text-gray-500 bg-[#161b22] rounded-xl border border-white/5 border-dashed">
                             No activity data available for this repository yet.
+                        </div>
+                    )}
+                </section>
+
+                {/* Top Hustler Leaderboard */}
+                <section className="space-y-4">
+                    <div className="flex items-center justify-between">
+                         <div>
+                             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <div className="w-1.5 h-6 bg-amber-500 rounded-full"></div>
+                                <Flame size={18} className="text-amber-400" />
+                                Top Hustlers
+                             </h2>
+                             <p className="text-xs text-gray-500 mt-1 ml-3.5">
+                                Contributors who commit during unusual hours (10 PM – 6 AM). Based on last 100 commits.
+                             </p>
+                         </div>
+                    </div>
+
+                    {activity?.topHustlers && activity.topHustlers.length > 0 ? (
+                        <div className="bg-[#161b22] rounded-xl border border-white/5 overflow-hidden">
+                            <div className="divide-y divide-white/5">
+                                {activity.topHustlers.map((hustler, index) => {
+                                    const medals = ['🥇', '🥈', '🥉'];
+                                    const medal = index < 3 ? medals[index] : `#${index + 1}`;
+                                    const percentage = hustler.totalCommits > 0 
+                                        ? Math.round((hustler.lateNightCommits / hustler.totalCommits) * 100) 
+                                        : 0;
+                                    const lastLate = hustler.latestLateCommit 
+                                        ? new Date(hustler.latestLateCommit).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                        : '';
+
+                                    return (
+                                        <div key={hustler.name} className={`flex items-center gap-4 p-4 hover:bg-white/[0.02] transition-colors ${
+                                            index === 0 ? 'bg-amber-500/[0.03]' : ''
+                                        }`}>
+                                            {/* Rank */}
+                                            <div className="text-xl w-8 text-center flex-shrink-0">
+                                                {medal}
+                                            </div>
+
+                                            {/* Avatar */}
+                                            <div className="relative flex-shrink-0">
+                                                {hustler.avatar ? (
+                                                    <img 
+                                                        src={hustler.avatar} 
+                                                        alt={hustler.name}
+                                                        className={`w-10 h-10 rounded-full border-2 ${
+                                                            index === 0 ? 'border-amber-400/60' : 'border-white/10'
+                                                        }`}
+                                                    />
+                                                ) : (
+                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                                                        index === 0 ? 'bg-amber-500/20 text-amber-300 border-2 border-amber-400/60' : 'bg-gray-700 text-gray-300 border-2 border-white/10'
+                                                    }`}>
+                                                        {hustler.name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <Moon size={12} className="absolute -bottom-0.5 -right-0.5 text-indigo-400 bg-[#161b22] rounded-full p-0.5" />
+                                            </div>
+
+                                            {/* Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`font-semibold text-sm truncate ${
+                                                        index === 0 ? 'text-amber-300' : 'text-white'
+                                                    }`}>
+                                                        {hustler.name}
+                                                    </span>
+                                                    {index === 0 && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded-full font-medium">
+                                                            NIGHT OWL
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-gray-500 mt-0.5">
+                                                    Last late commit: {lastLate || 'N/A'}
+                                                </div>
+                                            </div>
+
+                                            {/* Late commits count + bar */}
+                                            <div className="flex items-center gap-4 flex-shrink-0">
+                                                <div className="w-24">
+                                                    <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+                                                        <span>{hustler.lateNightCommits} late</span>
+                                                        <span>{percentage}%</span>
+                                                    </div>
+                                                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all"
+                                                            style={{ width: `${percentage}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="text-right min-w-[60px]">
+                                                    <div className="text-sm font-bold text-white">{hustler.lateNightCommits}</div>
+                                                    <div className="text-[10px] text-gray-500">/ {hustler.totalCommits}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="p-8 text-center text-gray-500 bg-[#161b22] rounded-xl border border-white/5 border-dashed">
+                            <Moon size={24} className="mx-auto mb-2 text-gray-600" />
+                            No late-night commits detected. This team has healthy work hours! 🎉
                         </div>
                     )}
                 </section>

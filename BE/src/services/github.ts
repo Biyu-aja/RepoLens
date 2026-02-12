@@ -84,6 +84,66 @@ export const getRecentCommits = async (owner: string, repo: string, since?: stri
     }
 };
 
+export const getTopHustlers = async (owner: string, repo: string) => {
+    try {
+        // Fetch last 100 commits with full details
+        const { data } = await octokit.request('GET /repos/{owner}/{repo}/commits', {
+            owner,
+            repo,
+            per_page: 100
+        });
+
+        // "Unusual hours" = 22:00 - 05:59 (10PM - 6AM)
+        const hustlerMap = new Map<string, {
+            name: string;
+            avatar: string;
+            lateNightCommits: number;
+            totalCommits: number;
+            latestLateCommit: string;
+        }>();
+
+        data.forEach((item: any) => {
+            const authorLogin = item.author?.login || item.commit.author?.name || 'unknown';
+            const avatar = item.author?.avatar_url || '';
+            const dateStr = item.commit.author?.date;
+
+            if (!dateStr) return;
+
+            const hour = new Date(dateStr).getUTCHours();
+            const isLateNight = hour >= 22 || hour < 6;
+
+            if (!hustlerMap.has(authorLogin)) {
+                hustlerMap.set(authorLogin, {
+                    name: authorLogin,
+                    avatar,
+                    lateNightCommits: 0,
+                    totalCommits: 0,
+                    latestLateCommit: ''
+                });
+            }
+
+            const entry = hustlerMap.get(authorLogin)!;
+            entry.totalCommits++;
+
+            if (isLateNight) {
+                entry.lateNightCommits++;
+                if (!entry.latestLateCommit || dateStr > entry.latestLateCommit) {
+                    entry.latestLateCommit = dateStr;
+                }
+            }
+        });
+
+        // Sort by lateNightCommits descending, return top 5
+        return Array.from(hustlerMap.values())
+            .filter(h => h.lateNightCommits > 0)
+            .sort((a, b) => b.lateNightCommits - a.lateNightCommits)
+            .slice(0, 5);
+    } catch (error) {
+        console.error('Error fetching top hustlers:', error);
+        return [];
+    }
+};
+
 export const getRepoFileStructure = async (owner: string, repo: string) => {
     try {
         // 1. Get default branch
