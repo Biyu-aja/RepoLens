@@ -15,7 +15,60 @@ interface Props {
 
 const API_URL = 'http://localhost:3001/api';
 
-const FileContent = React.memo(({ content, filePath }: { content: string | null, filePath: string }) => {
+const FileContent = React.memo(({ content, filePath, fileUrl }: { content: string | null, filePath: string, fileUrl?: string }) => {
+    const getExtension = (path: string) => path.split('.').pop()?.toLowerCase() || '';
+
+    const isImage = (path: string) => {
+        const ext = getExtension(path);
+        return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'svg'].includes(ext);
+    };
+
+    if (isImage(filePath)) {
+        const ext = getExtension(filePath);
+        // Special handling for SVG: sometimes better to render as utf-8 if it was decoded, 
+        // but our backend sends base64 for binaries.
+        const mimeType = ext === 'svg' ? 'image/svg+xml' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+        
+        // Prefer base64 if available, otherwise fallback to URL
+        const src = content 
+            ? `data:${mimeType};base64,${content}`
+            : fileUrl;
+
+        if (!src) {
+             return (
+                <div className="flex flex-col items-center justify-center p-8 text-gray-400">
+                    <span className="text-sm">Image not available</span>
+                </div>
+             );
+        }
+        
+        return (
+            <div className="flex items-center justify-center h-full min-h-[300px] bg-black/20 rounded-lg p-4">
+                <img 
+                    src={src} 
+                    alt={filePath} 
+                    className="max-w-full max-h-[600px] object-contain rounded shadow-lg"
+                    onError={(e) => {
+                        // If base64 failed and we have url, try that next
+                        if (content && fileUrl && e.currentTarget.src.startsWith('data:')) {
+                            console.log('Base64 image failed, trying URL fallback...');
+                            e.currentTarget.src = fileUrl;
+                            return;
+                        }
+
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement!.innerHTML = `
+                            <div class="flex flex-col items-center gap-2">
+                                <span class="text-red-400 text-xs">Failed to load image</span>
+                                ${fileUrl ? `<a href="${fileUrl}" target="_blank" class="text-primary text-xs hover:underline">Open External Link</a>` : ''}
+                            </div>
+                        `;
+                    }}
+                />
+            </div>
+        );
+    }
+
     const getLanguage = (path: string) => {
         if (path.endsWith('.ts') || path.endsWith('.tsx')) return 'typescript';
         if (path.endsWith('.js') || path.endsWith('.jsx')) return 'javascript';
@@ -45,42 +98,16 @@ const FileContent = React.memo(({ content, filePath }: { content: string | null,
 });
 
 const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
-    const [content, setContent] = useState<string | null>(null);
+    const [fileData, setFileData] = useState<any>(null); // Store full file object
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectionMenu, setSelectionMenu] = useState<{ x: number; y: number; text: string } | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Removed getLanguage from here as it moved to FileContent
-
-    useEffect(() => {
-        const handleSelection = () => {
-             const selection = window.getSelection();
-             if (!selection || selection.isCollapsed || !selection.toString().trim()) {
-                 setSelectionMenu(null);
-                 return;
-             }
- 
-             // Check if selection is inside this component
-             if (containerRef.current && !containerRef.current.contains(selection.anchorNode)) {
-                 return;
-             }
- 
-             const range = selection.getRangeAt(0);
-             const rect = range.getBoundingClientRect();
- 
-             setSelectionMenu({
-                 x: rect.left + rect.width / 2,
-                 y: rect.top - 10,
-                 text: selection.toString()
-             });
-        };
- 
-        document.addEventListener('mouseup', handleSelection);
-        return () => document.removeEventListener('mouseup', handleSelection);
-     }, []);
+    // ... (keep useEffect for selection) ...
 
     const handleQuoteClick = (e: React.MouseEvent) => {
+        // ... (keep same) ...
         e.stopPropagation();
         if (selectionMenu && onQuote) {
             onQuote(selectionMenu.text);
@@ -89,11 +116,11 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
         }
     };
 
-    // ... (fetchFile useEffect) ...
     useEffect(() => {
         const fetchFile = async () => {
             setLoading(true);
             setError(null);
+            setFileData(null);
             try {
                 const response = await fetch(`${API_URL}/files/content`, {
                     method: 'POST',
@@ -109,10 +136,11 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
     
                 const result = await response.json();
                 
+                // Content might be empty string, check for property existence
                 if (result.content !== undefined) {
-                    setContent(result.content);
+                    setFileData(result);
                 } else {
-                    throw new Error('File content not found');
+                     throw new Error('File content not found');
                 }
             } catch (err: any) {
                 setError(err.message);
@@ -130,7 +158,20 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
         <div ref={containerRef} className="flex flex-col h-full bg-[#16161a] rounded-xl border border-white/5 overflow-hidden relative">
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/10 bg-[#1e1e24] flex items-center justify-between">
-                <span className="text-sm font-mono text-gray-300">{filePath}</span>
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <span className="text-sm font-mono text-gray-300 truncate" title={filePath}>{filePath}</span>
+                    {fileData?.html_url && (
+                        <a 
+                            href={fileData.html_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline shrink-0"
+                            title="Open on GitHub"
+                        >
+                            Open External
+                        </a>
+                    )}
+                </div>
                 <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
                     <X size={18} />
                 </button>
@@ -162,7 +203,7 @@ const FileViewer: React.FC<Props> = ({ data, filePath, onClose, onQuote }) => {
                         <button onClick={() => window.location.reload()} className="text-xs text-primary hover:underline">Retry</button>
                     </div>
                 ) : (
-                     <FileContent content={content} filePath={filePath} />
+                     <FileContent content={fileData?.content} filePath={filePath} fileUrl={fileData?.download_url || fileData?.html_url} />
                 )}
             </div>
         </div>

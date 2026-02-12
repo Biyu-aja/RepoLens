@@ -1,9 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRepo } from '../contexts/RepoContext';
-import { Activity, Clock, Calendar, TrendingUp, Moon, Flame } from 'lucide-react';
+import { Activity, Clock, Calendar, TrendingUp, Moon, Flame, Scale } from 'lucide-react';
 import PunchCardGraph from '../components/PunchCardGraph';
 import CommitHistoryChart from '../components/CommitHistoryChart';
+import ContributionBalance from '../components/ContributionBalance';
 
 interface ActivityData {
   punchCard: number[][]; // [day, hour, count]
@@ -16,6 +17,17 @@ interface ActivityData {
     totalCommits: number;
     latestLateCommit: string;
   }[];
+  contributionBalance: {
+    contributors: {
+      name: string;
+      avatar: string;
+      commits: number;
+      additions: number;
+      deletions: number;
+      linesChanged: number;
+    }[];
+    equityScore: number;
+  };
 }
 
 const ActivityPage: React.FC = () => {
@@ -238,6 +250,33 @@ const ActivityPage: React.FC = () => {
                     ) : (
                         <div className="p-8 text-center text-gray-500 bg-[#161b22] rounded-xl border border-white/5 border-dashed">
                             No activity data available for this repository yet.
+                        </div>
+                    )}
+                </section>
+
+                {/* Contribution Balance */}
+                <section className="space-y-4">
+                    <div className="flex items-center justify-between">
+                         <div>
+                             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <div className="w-1.5 h-6 bg-cyan-500 rounded-full"></div>
+                                <Scale size={18} className="text-cyan-400" />
+                                Contribution Balance
+                             </h2>
+                             <p className="text-xs text-gray-500 mt-1 ml-3.5">
+                                How evenly distributed is the workload across team members.
+                             </p>
+                         </div>
+                    </div>
+
+                    {activity?.contributionBalance && activity.contributionBalance.contributors.length > 0 ? (
+                        <ContributionBalance 
+                            contributors={activity.contributionBalance.contributors}
+                            equityScore={activity.contributionBalance.equityScore}
+                        />
+                    ) : (
+                        <div className="p-8 text-center text-gray-500 bg-[#161b22] rounded-xl border border-white/5 border-dashed">
+                            No contributor data available yet. GitHub may be computing statistics.
                         </div>
                     )}
                 </section>

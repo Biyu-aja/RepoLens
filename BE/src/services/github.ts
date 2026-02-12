@@ -50,6 +50,79 @@ export const getCommitActivity = async (owner: string, repo: string) => {
     }
 }
 
+export const getContributorStats = async (owner: string, repo: string) => {
+    try {
+        // GitHub stats APIs often return 202 on first call (computing in background).
+        // We retry a few times with a delay to wait for the data.
+        let data: any = null;
+        const maxRetries = 3;
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            const response = await octokit.request('GET /repos/{owner}/{repo}/stats/contributors', {
+                owner,
+                repo
+            });
+
+            // 200 = data ready, 202 = still computing
+            if (response.status === 200 && Array.isArray(response.data)) {
+                data = response.data;
+                break;
+            }
+
+            // If 202 or empty, wait and retry
+            if (attempt < maxRetries - 1) {
+                console.log(`[ContributorStats] GitHub computing stats, retry ${attempt + 1}/${maxRetries}...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+
+        if (!data || !Array.isArray(data)) {
+            console.log('[ContributorStats] Data not ready after retries');
+            return { contributors: [], equityScore: 0 };
+        }
+
+        const contributors = data.map((contributor: any) => {
+            const totalCommits = contributor.total || 0;
+            const totalAdditions = contributor.weeks?.reduce((sum: number, w: any) => sum + (w.a || 0), 0) || 0;
+            const totalDeletions = contributor.weeks?.reduce((sum: number, w: any) => sum + (w.d || 0), 0) || 0;
+
+            return {
+                name: contributor.author?.login || 'unknown',
+                avatar: contributor.author?.avatar_url || '',
+                commits: totalCommits,
+                additions: totalAdditions,
+                deletions: totalDeletions,
+                linesChanged: totalAdditions + totalDeletions
+            };
+        }).sort((a: any, b: any) => b.commits - a.commits);
+
+        // Calculate equity score (0-100)
+        // Uses normalized entropy: if everyone contributes equally, score = 100
+        const totalCommits = contributors.reduce((sum: any, c: any) => sum + c.commits, 0);
+        let equityScore = 0;
+
+        if (totalCommits > 0 && contributors.length > 1) {
+            const n = contributors.length;
+            const maxEntropy = Math.log(n);
+            let entropy = 0;
+
+            contributors.forEach((c: any) => {
+                const p = c.commits / totalCommits;
+                if (p > 0) entropy -= p * Math.log(p);
+            });
+
+            equityScore = Math.round((entropy / maxEntropy) * 100);
+        } else if (contributors.length === 1) {
+            equityScore = 100; // Solo project = perfectly balanced by definition
+        }
+
+        return { contributors, equityScore };
+    } catch (error) {
+        console.error('Error fetching contributor stats:', error);
+        return { contributors: [], equityScore: 0 };
+    }
+};
+
 export const getRecentCommits = async (owner: string, repo: string, since?: string, until?: string) => {
     try {
         const params: any = {

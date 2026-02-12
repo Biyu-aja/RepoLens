@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, AlertCircle, Pencil, Trash2, X, Check, MoreHorizontal, Copy, RefreshCw, Quote } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles, AlertCircle, Pencil, Trash2, X, Check, MoreHorizontal, Copy, RefreshCw, Quote, PanelLeft } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -28,6 +28,8 @@ interface Props {
   onFirstMessage?: (message: string) => string | undefined; // Receives message, returns new session ID
   initialMessage?: string | null; // Message to send immediately on mount
   onClearInitialMessage?: () => void;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 const API_URL = 'http://localhost:3001/api';
@@ -90,7 +92,7 @@ const MessageContent = React.memo(({ msg, onFileClick }: { msg: Message; onFileC
   );
 });
 
-const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQuote, sessionId, onFirstMessage, initialMessage, onClearInitialMessage }) => {
+const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQuote, sessionId, onFirstMessage, initialMessage, onClearInitialMessage, isSidebarOpen, onToggleSidebar }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -599,9 +601,21 @@ const ChatPanel: React.FC<Props> = ({ data, onFileClick, externalQuote, onClearQ
   return (
     <div className="flex flex-col h-full bg-bg-card overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2 bg-gradient-to-r from-primary/10 to-transparent">
-        <Sparkles size={16} className="text-primary" />
-        <span className="text-sm font-medium text-white">AI Chat</span>
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3 bg-gradient-to-r from-primary/10 to-transparent">
+        {onToggleSidebar && (
+            <button 
+                onClick={onToggleSidebar}
+                className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+                title={isSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+            >
+                <PanelLeft size={18} />
+            </button>
+        )}
+        <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-primary" />
+            <span className="text-sm font-medium text-white">AI Chat</span>
+        </div>
         <span className="text-xs text-gray-400 ml-auto">Gemini 3 Flash</span>
       </div>
 

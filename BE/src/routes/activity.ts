@@ -1,6 +1,6 @@
 
 import { Router, Request, Response } from 'express';
-import { getPunchCard, getRecentCommits, getTopHustlers } from '../services/github';
+import { getPunchCard, getRecentCommits, getTopHustlers, getContributorStats } from '../services/github';
 
 const router = Router();
 
@@ -16,16 +16,18 @@ router.post('/activity/pulse', async (req: Request, res: Response) => {
         // Parallel fetch for speed
         // getCommitActivity often returns 202 and empty data initially. 
         // We use getRecentCommits as a fallback or primary source for the timeline.
-        const [punchCard, recentCommits, topHustlers] = await Promise.all([
+        const [punchCard, recentCommits, topHustlers, contributorStats] = await Promise.all([
             getPunchCard(owner, repo),
             getRecentCommits(owner, repo, since, until),
-            getTopHustlers(owner, repo)
+            getTopHustlers(owner, repo),
+            getContributorStats(owner, repo)
         ]);
 
         res.json({
             punchCard: punchCard || [],
             timeline: recentCommits || [],
-            topHustlers: topHustlers || []
+            topHustlers: topHustlers || [],
+            contributionBalance: contributorStats || { contributors: [], equityScore: 0 }
         });
     } catch (error: any) {
         console.error('Error fetching activity pulse:', error);

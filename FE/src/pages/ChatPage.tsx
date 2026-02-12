@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRepo } from '../contexts/RepoContext';
 import ChatPanel from '../components/ChatPanel';
-import { Plus, MessageSquare, Trash2, ChevronLeft, ChevronRight, Pencil, Check, X } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Pencil, Check, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface ChatSession {
@@ -199,10 +199,18 @@ const ChatPage: React.FC = () => {
 
   return (
     <div className="flex h-full w-full overflow-hidden relative">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/50 z-20 backdrop-blur-sm"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sessions Sidebar */}
       <div 
-        className={`relative flex flex-col shrink-0 z-20 bg-bg-card border-r border-white/10 transition-all duration-300 ${
-            sidebarOpen ? 'w-64' : 'w-0 border-r-0'
+        className={`fixed md:relative inset-y-0 left-0 bg-bg-card border-r border-white/10 flex flex-col shrink-0 z-30 transition-all duration-300 overflow-hidden items-center ${
+            sidebarOpen ? 'w-64 translate-x-0 items-stretch' : 'w-0 -translate-x-full md:translate-x-0 md:w-0 md:border-r-0'
         }`}
       >
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
@@ -228,6 +236,8 @@ const ChatPage: React.FC = () => {
                     onClick={() => {
                         if (editingSessionId !== session.id) {
                             setCurrentSessionId(session.id);
+                            // Close sidebar on mobile when selecting
+                            if (window.innerWidth < 768) setSidebarOpen(false);
                         }
                     }}
                     className={`group flex items-center gap-3 px-3 py-3 rounded-md cursor-pointer transition-colors ${
@@ -307,17 +317,6 @@ const ChatPage: React.FC = () => {
         </div>
       </div>
 
-       {/* Toggle Button (Absolute) */}
-       <button 
-          className={`absolute top-4 z-30 w-8 h-8 flex items-center justify-center bg-bg-card border border-white/10 rounded-full shadow-lg text-gray-400 hover:text-white transition-all ${
-             sidebarOpen ? 'left-60' : 'left-4'
-          }`}
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-       >
-          {sidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-       </button>
-
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-bg-card relative">
           {/* Key ensures ChatPanel re-mounts when session changes */}
@@ -330,6 +329,8 @@ const ChatPage: React.FC = () => {
             onFirstMessage={handleFirstMessage}
             initialMessage={pendingMessage}
             onClearInitialMessage={() => setPendingMessage(null)}
+            isSidebarOpen={sidebarOpen}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             onFileClick={(path) => {
                // Simple heuristic: if it has an extension, it's a file. Else folder.
                const hasExtension = /\.[a-zA-Z0-9]+$/.test(path);

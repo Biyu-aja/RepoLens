@@ -43,12 +43,21 @@ router.post('/files/content', async (req: Request, res: Response) => {
             return;
         }
 
-        // If it's a file, decode the content for easier frontend usage
+        // If it's a file, decode the content for easier frontend usage ONLY if it's text
         // usage: if 'content' in data && data.encoding === 'base64'
         if (!Array.isArray(content) && 'content' in content && content.encoding === 'base64') {
-            const decodedContent = Buffer.from(content.content, 'base64').toString('utf-8');
-            res.json({ ...content, content: decodedContent, encoding: 'utf-8' });
-            return;
+            const isBinary = /\.(png|jpg|jpeg|gif|webp|ico|svg|pdf|zip|tar|gz)$/i.test(path || '');
+
+            if (!isBinary) {
+                const decodedContent = Buffer.from(content.content, 'base64').toString('utf-8');
+                res.json({ ...content, content: decodedContent, encoding: 'utf-8' });
+                return;
+            } else {
+                // For binary files, return as base64 (remove all whitespace/newlines)
+                const cleanContent = content.content.replace(/\s/g, '');
+                res.json({ ...content, content: cleanContent, encoding: 'base64' });
+                return;
+            }
         }
 
         res.json(content);
