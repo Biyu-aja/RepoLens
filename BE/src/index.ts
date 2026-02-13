@@ -26,6 +26,12 @@ app.get('/', (req, res) => {
     res.send('RepoLens API is running');
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+// For local development
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
+
+// Export the Express API
+export default app;

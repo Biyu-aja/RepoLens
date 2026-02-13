@@ -8,5 +8,10 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true
-    }
+    },
+    "exclude": [
+        "api",
+        "node_modules",
+        "dist"
+    ]
 }
