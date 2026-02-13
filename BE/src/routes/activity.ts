@@ -1,6 +1,6 @@
 
 import { Router, Request, Response } from 'express';
-import { getPunchCard, getRecentCommits, getTopHustlers, getContributorStats } from '../services/github';
+import { getPunchCard, getRecentCommits, getTopHustlers, getContributorStats } from '../services/github.js';
 
 const router = Router();
 

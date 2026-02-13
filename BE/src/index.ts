@@ -1,13 +1,12 @@
-import dotenv from 'dotenv';
-dotenv.config(); // Load env FIRST before other imports
+import 'dotenv/config';
 
 import express from 'express';
 import cors from 'cors';
-import analyzeRoutes from './routes/analyze';
-import chatRoutes from './routes/chat';
-import filesRoutes from './routes/files';
-import shareRoutes from './routes/share';
-import activityRoutes from './routes/activity';
+import analyzeRoutes from './routes/analyze.js';
+import chatRoutes from './routes/chat.js';
+import filesRoutes from './routes/files.js';
+import shareRoutes from './routes/share.js';
+import activityRoutes from './routes/activity.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,7 +26,7 @@ app.get('/', (req, res) => {
 });
 
 // For local development
-if (require.main === module) {
+if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
     });

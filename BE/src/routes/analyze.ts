@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { getRepoDetails, getRepoContent, getRepoFileStructure, getContributors, getLanguages } from '../services/github';
-import { evaluateRepository } from '../services/ai';
+import { getRepoDetails, getRepoContent, getRepoFileStructure, getContributors, getLanguages } from '../services/github.js';
+import { evaluateRepository } from '../services/ai.js';
 
 const router = Router();
 

@@ -1,5 +1,5 @@
 
-import { getRepoFileStructure, getRepoContent } from './github';
+import { getRepoFileStructure, getRepoContent } from './github.js';
 
 interface DependencyNode {
     id: string; // File path

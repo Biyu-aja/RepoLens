@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getRepoContent, getRepoFileStructure } from '../services/github';
+import { getRepoContent, getRepoFileStructure } from '../services/github.js';
 
 const router = Router();
 
