@@ -135,7 +135,7 @@ const FileExplorer: React.FC<Props> = ({ data, onFileSelect, initialPath = '', s
             setLoading(true);
             setError(null);
             try {
-                const response = await fetch(`${API_URL}/api/files/structure`, {
+                const response = await fetch(`${API_URL}/files/structure`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

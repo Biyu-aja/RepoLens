@@ -138,7 +138,7 @@ const RepoMap: React.FC<Props> = ({ data }) => {
     setLoading(true);
     setError(null);
     try {
-        const response = await fetch(`${API_URL}/api/files/structure`, {
+        const response = await fetch(`${API_URL}/files/structure`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ owner: data.owner, repo: data.name })

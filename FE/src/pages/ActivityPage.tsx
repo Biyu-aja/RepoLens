@@ -56,7 +56,7 @@ const ActivityPage: React.FC = () => {
     const fetchActivity = async (owner: string, repo: string, since?: string, until?: string) => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/activity/pulse`, {
+            const res = await fetch(`${API_URL}/activity/pulse`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ owner, repo, since, until })

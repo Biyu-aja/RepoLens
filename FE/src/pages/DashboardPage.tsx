@@ -63,7 +63,7 @@ const DashboardPage: React.FC = () => {
     
     setReanalyzing(true);
     try {
-      const response = await fetch(`${API_URL}/api/analyze-repo`, {
+      const response = await fetch(`${API_URL}/analyze-repo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: data.url })

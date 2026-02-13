@@ -43,7 +43,7 @@ const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-        const response = await fetch(`${API_URL}/api/files/dependencies`, {
+        const response = await fetch(`${API_URL}/files/dependencies`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ owner: data.owner, repo: data.name })

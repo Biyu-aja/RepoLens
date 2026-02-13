@@ -27,7 +27,7 @@ const SharePage: React.FC = () => {
         setStatus('decoding');
         setMessage('Decoding share link...');
 
-        const decodeRes = await fetch(`${API_URL}/api/share/decode/${token}`);
+        const decodeRes = await fetch(`${API_URL}/share/decode/${token}`);
         if (!decodeRes.ok) throw new Error('Invalid or expired share link');
 
         const { repoUrl, owner, name, notes } = await decodeRes.json();
@@ -38,7 +38,7 @@ const SharePage: React.FC = () => {
         setMessage(`Analyzing ${owner}/${name}...`);
         setGlobalLoading(true);
 
-        const analyzeRes = await fetch(`${API_URL}/api/analyze-repo`, {
+        const analyzeRes = await fetch(`${API_URL}/analyze-repo`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: repoUrl })

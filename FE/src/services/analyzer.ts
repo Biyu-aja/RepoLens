@@ -1,9 +1,10 @@
 import type { RepoAnalysis } from '../types';
 
+import API_URL from '../config';
+
 export const analyzeRepository = async (repoUrl: string): Promise<RepoAnalysis> => {
   try {
-    const API_URL = import.meta.env.VITE_API_URL;
-    const response = await fetch(`${API_URL}/api/analyze-repo`, {
+    const response = await fetch(`${API_URL}/analyze-repo`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

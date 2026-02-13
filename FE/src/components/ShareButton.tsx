@@ -23,7 +23,7 @@ const ShareButton: React.FC<Props> = ({ repoUrl, owner, name }) => {
     setError('');
     
     try {
-      const response = await fetch(`${API_URL}/api/share/encode`, {
+      const response = await fetch(`${API_URL}/share/encode`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
