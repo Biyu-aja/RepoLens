@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ForceGraph2D from 'react-force-graph-2d';
 import { Loader2, ZoomIn, ZoomOut, RefreshCw, Maximize2, Lightbulb, Zap } from 'lucide-react';
 import type { RepoAnalysis } from '../types';
+import API_URL from '../config';
 
 interface Props {
   data: RepoAnalysis;
@@ -40,8 +41,7 @@ const RepoMap: React.FC<Props> = ({ data }) => {
   const graphRef = useRef<any>(null);
   const navigate = useNavigate();
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
+  // Process flat structure into graph data
   // Process flat structure into graph data
   const processStructure = (items: any[]) => {
     const nodes: GraphNode[] = [];

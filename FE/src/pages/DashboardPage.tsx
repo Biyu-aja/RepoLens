@@ -19,6 +19,7 @@ import ShareButton from '../components/ShareButton';
 import NotesWidget from '../components/NotesWidget';
 import RepoMap from '../components/RepoMap';
 import { useRepo } from '../contexts/RepoContext';
+import API_URL from '../config';
 
 const DashboardPage: React.FC = () => {
   const { data, setData, loading } = useRepo();
@@ -62,7 +63,6 @@ const DashboardPage: React.FC = () => {
     
     setReanalyzing(true);
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       const response = await fetch(`${API_URL}/api/analyze-repo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

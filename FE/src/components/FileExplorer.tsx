@@ -28,7 +28,7 @@ interface Props {
     selectedPath?: string | null;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import API_URL from '../config';
 
 const getFileIcon = (name: string) => {
     if (name.endsWith('.ts') || name.endsWith('.tsx')) return <FileCode size={16} className="text-blue-400" />;

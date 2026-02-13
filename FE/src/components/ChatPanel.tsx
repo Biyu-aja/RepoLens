@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
 import type { RepoAnalysis } from '../types';
+import API_URL from '../config';
 
 interface Message {
   id: string;
@@ -32,7 +33,7 @@ interface Props {
   onToggleSidebar?: () => void;
 }
 
-const API_URL = 'http://localhost:3001/api';
+
 
 const MessageContent = React.memo(({ msg, onFileClick }: { msg: Message; onFileClick?: (path: string) => void }) => {
   return (

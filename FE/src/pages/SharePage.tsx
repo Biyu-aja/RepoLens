@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, Link2 } from 'lucide-react';
 import { useRepo } from '../contexts/RepoContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import API_URL from '../config';
 
 const SharePage: React.FC = () => {
   const { token } = useParams<{ token: string }>();

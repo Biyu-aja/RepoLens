@@ -13,7 +13,7 @@ interface Props {
     onQuote?: (text: string) => void;
 }
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = (import.meta.env.VITE_API_URL) + '/api';
 
 const FileContent = React.memo(({ content, filePath, fileUrl }: { content: string | null, filePath: string, fileUrl?: string }) => {
     const getExtension = (path: string) => path.split('.').pop()?.toLowerCase() || '';

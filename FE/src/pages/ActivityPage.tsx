@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRepo } from '../contexts/RepoContext';
+import API_URL from '../config';
 import { Activity, Clock, Calendar, TrendingUp, Moon, Flame, Scale } from 'lucide-react';
 import PunchCardGraph from '../components/PunchCardGraph';
 import CommitHistoryChart from '../components/CommitHistoryChart';
@@ -55,7 +56,6 @@ const ActivityPage: React.FC = () => {
     const fetchActivity = async (owner: string, repo: string, since?: string, until?: string) => {
         setLoading(true);
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
             const res = await fetch(`${API_URL}/api/activity/pulse`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

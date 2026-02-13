@@ -8,7 +8,7 @@ interface Props {
   onInsightsUpdate?: (insights: AIInsight[]) => void;
 }
 
-const API_URL = 'http://localhost:3001/api';
+import API_URL from '../config';
 
 // Skeleton loading component
 const InsightSkeleton: React.FC = () => (

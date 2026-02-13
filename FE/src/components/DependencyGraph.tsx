@@ -1,8 +1,8 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { Loader2, ZoomIn, ZoomOut, Maximize2, Zap } from 'lucide-react';
 import type { RepoAnalysis } from '../types';
+import API_URL from '../config';
 
 interface Props {
   data: RepoAnalysis;
@@ -39,9 +39,7 @@ const DependencyGraph: React.FC<Props> = ({ data }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const graphRef = useRef<any>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
-  const fetchData = async () => {
+const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
