@@ -1,8 +1,28 @@
 # RepoLens
 
+*Visualize, Analyze, and Chat with Your Codebase.*
+
 RepoLens is a powerful web application designed to help developers visualize, analyze, and interact with their codebases. It provides an intuitive interface for exploring repositories, viewing file contents, and gaining insights through an AI-powered chat system.
 
+
 This repository is organized into a monorepo structure containing both the frontend and backend services.
+
+## Project Story
+
+### Inspiration
+Developers spend a significant amount of time trying to understand existing codebases. The cognitive load required to trace dependencies, analyze code quality, and simply navigate large directories can be immense. We were inspired to build a tool that acts not just as a viewer, but as an intelligent companion—a "lens" that brings clarity to complex repositories.
+
+### How it was Built
+RepoLens is designed with a decoupled architecture to ensure scalability and a smooth developer experience. 
+
+- **Frontend:** Built with React, Vite, and Tailwind CSS, the frontend focuses on providing a highly interactive visualization experience. We utilized libraries like Recharts for data visualization and built custom components to provide an IDE-like file navigation experience.
+- **Backend:** Powered by Node.js and Express, the backend acts as the core engine. It interfaces directly with the local file system (or remote repositories via APIs) and handles the heavy lifting of code analysis and AI integrations.
+
+### Challenges Faced
+Running these calculations across deep file trees required careful optimization of our backend algorithms and efficient state management on the frontend to keep the UI snappy. Another significant hurdle was chunking and managing code context for the AI chat to ensure we provided the LLM with relevant code without exceeding token limits.
+
+### What We Learned
+Building RepoLens vastly deepened our understanding of full-stack TypeScript development and the intricacies of seamlessly integrating AI features into traditional web apps. We learned how critical it is to balance rich functionality with performance, reinforcing our commitment to building performant and user-centric tools.
 
 ## Project Structure
 

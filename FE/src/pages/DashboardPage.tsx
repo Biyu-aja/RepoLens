@@ -33,8 +33,7 @@ const DashboardPage: React.FC = () => {
     !data.productionReadiness || 
     !data.contributors || 
     !data.languages ||
-    !data.techStack || 
-    data.techStack.length === 0
+    !data.techStack
   );
 
   useEffect(() => {
@@ -127,7 +126,7 @@ const DashboardPage: React.FC = () => {
 
       {/* Reanalyzing Overlay */}
       {reanalyzing && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0a0a0c]/80 backdrop-blur-md transition-all duration-300">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0a0a0c]/80 backdrop-blur-md transition-all duration-300">
           <div className="flex flex-col items-center gap-6 p-8 rounded-3xl border border-white/10 bg-[#0a0a0c]/50 shadow-2xl">
             <div className="relative">
               <div className="absolute inset-0 bg-indigo-500 blur-2xl opacity-20 animate-pulse" />

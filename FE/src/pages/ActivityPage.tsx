@@ -91,11 +91,14 @@ const ActivityPage: React.FC = () => {
     
     // ... existing loading/error check ...
 
-    if (repoLoading || loading) {
+    // Only show full page load if we have no activity data at all
+    if (!activity && (repoLoading || loading)) {
         return (
-            <div className="flex h-full items-center justify-center text-gray-400">
-                <Activity className="animate-pulse mr-2" />
-                <span>Loading activity pulse...</span>
+            <div className="flex h-full items-center justify-center bg-[#0a0a0c]">
+                <div className="flex flex-col items-center gap-4 p-6 rounded-2xl border border-white/10 bg-[#161b22]/80 shadow-xl">
+                    <Activity className="text-indigo-400 animate-pulse" size={32} />
+                    <span className="text-gray-300 font-medium tracking-wide">Loading activity pulse...</span>
+                </div>
             </div>
         );
     }
@@ -135,7 +138,9 @@ const ActivityPage: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#0a0a0c] overflow-y-auto custom-scrollbar">
+        <div className="flex flex-col h-full bg-[#0a0a0c] overflow-y-auto custom-scrollbar relative">
+
+            
             {/* Header */}
             <header className="px-8 py-6 border-b border-white/5 bg-[#0a0a0c]/80 backdrop-blur sticky top-0 z-10">
                 <div className="flex items-center gap-3">
@@ -216,17 +221,27 @@ const ActivityPage: React.FC = () => {
                          </div>
                     </div>
                     
-                    {activity?.timeline && activity.timeline.length > 0 ? (
-                        <CommitHistoryChart 
-                            data={activity.timeline} 
-                            year={currentDate.getFullYear()}
-                            month={currentDate.getMonth()}
-                        />
-                    ) : (
-                        <div className="p-8 text-center text-gray-500 bg-[#161b22] rounded-xl border border-white/5 border-dashed">
-                            No timeline data available for {monthLabel}.
-                        </div>
-                    )}
+                    <div className="relative">
+                        {loading && (
+                            <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0a0a0c]/40 backdrop-blur-[2px] rounded-xl transition-all">
+                                <div className="flex items-center gap-2 px-4 py-2 bg-[#161b22] rounded-full border border-white/10 shadow-lg">
+                                    <Activity className="text-indigo-400 animate-pulse" size={16} />
+                                    <span className="text-sm text-gray-300">Loading timeline...</span>
+                                </div>
+                            </div>
+                        )}
+                        {activity?.timeline && activity.timeline.length > 0 ? (
+                            <CommitHistoryChart 
+                                data={activity.timeline} 
+                                year={currentDate.getFullYear()}
+                                month={currentDate.getMonth()}
+                            />
+                        ) : (
+                            <div className="p-8 text-center text-gray-500 bg-[#161b22] rounded-xl border border-white/5 border-dashed">
+                                No timeline data available for {monthLabel}.
+                            </div>
+                        )}
+                    </div>
                 </section>
 
                 {/* Punch Card Graph */}
