@@ -6,6 +6,7 @@ import {
   TrendingUp, Zap, Scale, Terminal, RefreshCw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import ScoreRing from '../components/ScoreRing';
 import ScoreBreakdown from '../components/ScoreBreakdown';
 import StatCard from '../components/StatCard';
@@ -72,9 +73,10 @@ const DashboardPage: React.FC = () => {
       
       const newData = await response.json();
       setData(newData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Re-analyze failed:', error);
-      alert('Failed to re-analyze repository');
+      const message = error.response?.data?.error || error.message || 'Failed to re-analyze repository';
+      toast.error(message);
     } finally {
       setReanalyzing(false);
     }

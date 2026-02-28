@@ -120,7 +120,18 @@ router.post('/analyze-repo', async (req: Request, res: Response) => {
 
     } catch (error: any) {
         console.error('[Analyze] Error:', error);
-        res.status(500).json({ error: error.message || 'Failed to analyze repository' });
+
+        let errorMessage = error.message || 'Failed to analyze repository';
+        const status = error.status || 500;
+
+        // Translate GitHub API errors to human-readable text
+        if (status === 404 || errorMessage.includes('Not Found')) {
+            errorMessage = 'This repository is private, deleted, or does not exist. Please check the URL and try again.';
+        } else if (status === 403 || errorMessage.includes('rate limit')) {
+            errorMessage = 'GitHub API rate limit exceeded. Please try again later.';
+        }
+
+        res.status(status).json({ error: errorMessage });
     }
 });
 

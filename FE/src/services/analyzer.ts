@@ -13,7 +13,16 @@ export const analyzeRepository = async (repoUrl: string): Promise<RepoAnalysis> 
     });
 
     if (!response.ok) {
-      throw new Error(`Analysis failed: ${response.statusText}`);
+      let errorMessage = `Analysis failed: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch (e) {
+        // Ignore JSON parse error on non-OK responses
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();

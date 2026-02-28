@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Github, Loader2, ArrowRight, Clock, Trash2, ExternalLink, Upload, Info } from 'lucide-react';
 import { analyzeRepository } from '../services/analyzer';
 import { useRepo } from '../contexts/RepoContext';
+import { toast } from 'react-hot-toast';
 import type { RepoAnalysis } from '../types';
 
 const HISTORY_KEY = 'repo_analysis_history';
@@ -48,9 +49,13 @@ const LandingPage: React.FC = () => {
       // Update context (this also saves to localStorage)
       setData(data);
       navigate('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Failed to analyze repository');
+      const message = error.response?.data?.error || error.message || 'Failed to analyze repository. Make sure the repository is public and exists.';
+      toast.error(message, {
+        duration: 5000,
+        style: { maxWidth: '500px' }
+      });
     } finally {
       setLoading(false);
     }
@@ -98,9 +103,9 @@ const LandingPage: React.FC = () => {
                }
             });
             // console.log(`Restored ${json.chats.length} chat sessions`);
-            alert(`Analysis imported successfully!\nRestored ${json.chats.length} chat sessions.`);
+            toast.success(`Analysis imported successfully! Restored ${json.chats.length} chat sessions.`);
           } else {
-            alert('Analysis imported successfully!');
+            toast.success('Analysis imported successfully!');
           }
 
           // 3. Save to History
@@ -110,11 +115,11 @@ const LandingPage: React.FC = () => {
           
           navigate('/dashboard');
         } else {
-          alert('Invalid RepoLens analysis file');
+          toast.error('Invalid RepoLens analysis file');
         }
       } catch (err) {
         console.error('Import failed:', err);
-        alert('Failed to parse analysis file');
+        toast.error('Failed to parse analysis file');
       }
     };
     reader.readAsText(file);

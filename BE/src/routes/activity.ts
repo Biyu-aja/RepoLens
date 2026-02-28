@@ -31,7 +31,17 @@ router.post('/activity/pulse', async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Error fetching activity pulse:', error);
-        res.status(500).json({ error: error.message || 'Failed to fetch activity pulse' });
+
+        let errorMessage = error.message || 'Failed to fetch activity pulse';
+        const status = error.status || 500;
+
+        if (status === 404 || errorMessage.includes('Not Found')) {
+            errorMessage = 'This repository is private, deleted, or does not exist.';
+        } else if (status === 403 || errorMessage.includes('rate limit')) {
+            errorMessage = 'GitHub API rate limit exceeded. Please try again later.';
+        }
+
+        res.status(status).json({ error: errorMessage });
     }
 });
 
